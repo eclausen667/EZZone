@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"
+          rel="stylesheet">
+	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<script src="static/bootstrap.file-input.js"></script>
+	<style type="text/css">
+	#left { 
+		width: 55%; 
+		border-right: 2px solid; 
+		border-color:#E0E0EB;
+		float: left
+		}
+	#right { 
+		width: 45%;
+		padding-left: 15px; 
+		float: right
+		}
+	#hr {
+		color:#E0E0EB;
+		background-color:#E0E0EB;
+		height:3px;
+		
+		}
+	</style> 
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2 class="text-muted">Agricultural Management Zone Creator</h2>
+      </div>
+	
+      <hr id="hr">
+      <div id="left">
+      
+      <form action="upload" method="post" enctype="multipart/form-data">
+        <h4 >File should be .CSV or .TXT in CSV and X,Y,Z format: </h4><input type="file" name="file" title="Browse for files" data-filename-placement="inside"><br><br>
+		
+		<h4>Coordinate Reference System in EPSG: </h4><input type="text" name="coord" value="4326"><br><br>
+		<h4>Field Type: </h4>
+		<input type= "radio" name="field" value="1"> Rectangular <br>
+		<input type= "radio" name="field" value="2"> Circular with Variable Rate Irrigation (VRI)<br>
+		<input type= "radio" name="field" value="3"> Irregular and Circular without VRI<br> <br>
+        <input type="submit" value="Continue">
+      </form>
+      </div>
+	  <div id="right">
+	  <h3 class="text-primary"> About This Project</h3>
+	  <p>This is a free online resource for creating Agricultural Management Zones from univariate georeferenced data.  The goal is to create zones 
+	  that are useful to farmers by simplifying zone creation and creating zones that conform to row spacing and equipment specifications.
+	  </p>
+	  <h5> Input Data Preparation </h5>
+	  
+	  </div>
+	  
+	  
+    </div>
+	<script type="text/javascript">
+	$('input[type=file]').bootstrapFileInput();
+	$('.file-inputs').bootstrapFileInput();
+	</script>
+  </body>
+</html>
