@@ -8,7 +8,7 @@ from shapely.ops import cascaded_union
 from rasterstats import zonal_stats
 import geojson
 import random
-from jenks import jenks
+#from jenks import jenks
 
 def extrapolate_nans(x, y, v):
     '''

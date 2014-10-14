@@ -53,3 +53,6 @@ def create():
     polyStats = mz.getPolyStats(array,polys,bounds)
     gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj)
     return render_template('rectdone.html', string = gjsonObj)
+	
+if __name__ == '__main__':
+    app.run()
