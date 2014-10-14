@@ -2,7 +2,21 @@
 <html>
   <head>
     <link rel="stylesheet" href="static/css/hopscotch.css"></link>
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"
+          rel="stylesheet">
     <style type="text/css">
+	#left { 
+		border-right: 2px solid; 
+		border-color:#E0E0EB;
+		float: left;
+		padding-right:10px;
+		width: 70%; 
+		}
+	#right { 
+		width: 30%;
+		padding-left: 15px; 
+		float: right;
+		}
     #map {
       width: 750px;
       height: 500px;
@@ -68,6 +82,15 @@
 		background-image: url("static/theme/default/img/draw_polygon_off.png");
 		background-repeat: no-repeat;
 	}
+	#hr {
+		color:#E0E0EB;
+		background-color:#E0E0EB;
+		height:3px;
+		
+		}
+	#button {
+		width: 100px;
+		height: 30px;
 	</style>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
@@ -196,14 +219,36 @@
     </script>
   </head>
   <body onload="init()">
-    <h1 id="title">GeoJSON Example</h1>
+  <div class="container">
+      <div class="header">
+        <h2 class="text-muted">Agricultural Management Zone Creator</h2>
+      </div>
+	  <hr id="hr">
+	 <div id ="left">
     <div id="map" class="smallmap"></div>
+	<br>
 	<div id="form">
 
-      <form id="send" method="post" action="create" onsubmit="getJSON()" enctype='application/json'>
-        <input type="submit" value="Continue" />
+      <form id="send" method="post" action="createRect" onsubmit="getJSON()" enctype='application/json'>
+        <input type="submit" value="Continue" id="button"/>
 		<input type="hidden" name="jsonval" value=""/>
       </form>
     </div>
+	</div>
+	<div id = "right">
+	<h3 class="text-primary"> Field Boundary Adjustment</h3>
+	<br>
+	  <h4>Use the toolbar at the top right of the map to adjust the boundary of your field.  </h4>
+	  <br>
+	  <img src="static/theme/default/img/draw_polygon_off.png"> Move the entire field
+	  <br>
+	  <br>
+	  <img src="static/theme/default/img/move_feature_off.png"> Adjust the field corners.
+	  <br><br>
+	  <img src="static/theme/default/img/pan_off.png"> Pan the map.
+	  <br>
+	  <br>
+	  <h4>Press Continue to view the created zones.  </h4>
+	  </div>
     </body>
 </html>

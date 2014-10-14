@@ -1,3 +1,9 @@
+'''
+local app was changed to include a run.py and __init__.py file.
+'''
+
+
+#from app import app   #added this for local app
 from flask import render_template, request, Flask
 from werkzeug import secure_filename
 import mz
@@ -16,6 +22,12 @@ fieldType = 0
 x = 0
 y = 0
 z = 0
+rowSpacing = 0
+pivotLength = 0
+pivotSpacing = 0
+classes = 0
+fieldBound = 0
+smooth = 0
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -27,32 +39,133 @@ def index():
 
 @app.route('/upload', methods=['POST','GET'])
 def upload():
-    global inP, fieldType, x, y, z
+    #global variables
+    global inP, fieldType, x, y, z, classes, rowSpacing, pivotSpacing, pivotLength, fieldBound, smooth
+    #get uploaded file, if ok then continue, else render badfile template
     fileup = request.files['file']
     if fileup and allowed_file(fileup.filename):
         filename = secure_filename(fileup.filename)
         filename = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         fileup.save(filename)
-        global inP, fieldType, x, y, z
-        x,y,z = np.loadtxt(filename,skiprows=1,delimiter=",", unpack=True)
+        #unpack values from file, else render badfile template
+        try :
+            x,y,z = np.loadtxt(filename,skiprows=1,delimiter=",", unpack=True)
+        except ValueError:
+            return render_template('badFile.html') 
+        #grab rest of values from form, modify to correct type              
+        classes = int(request.form['classes'])        
         inP = request.form['coord']
         inP = 'epsg:' + str(inP)
         fieldType = request.form['field']
         fieldType = int(fieldType)
-        json = mz.boundJson(x = x, y = y,geometryType = fieldType, inProjection =inP)
-        return render_template('rect.html',string=json)
-
-@app.route('/create', methods=['POST'])
-def create():
-    content = request.form['jsonval']
-    poly = mz.reproject(obj = content, gjsonString = True)
-    utmPyProj = mz.utmzone(poly, shapelyPoly = True)
-    poly = mz.reproject(obj = poly, inProjection = 'epsg:4326', outProjection = utmPyProj, outPProj = True)
-    polys = mz.rectGrid(poly, rowSpace = 2)
-    array, bounds = mz.interpolateRaster(x,y,z,poly)
+        #render templates according to field type
+        if fieldType == 1:
+            #check for row spacing value
+            try:
+                rowSpacing = float(request.form['row'])
+                smooth = int(request.form['smooth'])
+            except ValueError:
+                return render_template('badParam.html')
+            #check for valid epsg
+            try:
+                json = mz.boundJson(x = x, y = y,geometryType = fieldType, inProjection =inP)
+            except RuntimeError:
+                return render_template('badEpsg.html')
+            #render in browser
+            return render_template('rect.html',string=json)
+        if fieldType == 2:
+            #check for valid 
+            try:
+                pivotSpacing = float(request.form['spacing'])
+            except ValueError:
+                return render_template('badParam.html')
+            try:
+                pivotLength = float(request.form['length'])
+            except ValueError:
+                return render_template('badParam.html')
+            try:
+                json = mz.boundJson(x = x, y = y,geometryType = fieldType, inProjection =inP)
+                fieldBound = mz.asshape(json)
+            except RuntimeError:
+                return render_template('badEpsg.html')
+            return render_template('vri.html', string = json)
+        if fieldType == 3:
+            #check for row spacing value
+            try:
+                rowSpacing = float(request.form['row'])
+                smooth = int(request.form['smooth'])
+            except ValueError:
+                return render_template('badParam.html')
+            #check for valid epsg
+            try:
+                json = mz.boundJson(x = x, y = y,geometryType = fieldType, inProjection =inP)
+            except RuntimeError:
+                return render_template('badEpsg.html')
+            #render in browser
+            return render_template('irreg.html',string=json)
+    else:
+        return render_template('badFile.html')
+        
+@app.route('/createRect', methods=['POST'])
+def createRect():
+    #get the customized geojson, reproject to 4326, get utmzone, reproject to utm
+    content = str(request.form['jsonval'])
+    bound = mz.reprojectPoly(obj = content)
+    utmPyProj = mz.utmzone(bound)
+    bound = mz.reprojectPoly(obj = bound, inProjection = 'epsg:4326', outProjection = utmPyProj)
+    #create grid, interpolate, get grid stats, create geojson
+    rSpace = mz.getSpacing(bound, rowSpacing)
+    polys = mz.rectGrid(bound, rSpace)
+    array, bounds = mz.interpolateRaster(x,y,z,inP, utmPyProj, bound)
     polyStats = mz.getPolyStats(array,polys,bounds)
-    gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj)
-    return render_template('rectdone.html', string = gjsonObj)
-	
-if __name__ == '__main__':
-    app.run()
+    gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj,classes, (rSpace*smooth))
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
+    
+@app.route('/createVri', methods=['POST'])
+def createVri():
+    #get the customized geojson, reproject to 4326, get utmzone, reproject to utm
+    content = str(request.form['jsonval'])
+    bound = mz.geojFCparser(content, 'Polygon')
+    point = mz.geojFCparser(content, 'Point')
+    bound = mz.reprojectPoly(bound)
+    utmPyProj = mz.utmzone(bound)
+    bound = mz.reprojectPoly(bound, inProjection = 'epsg:4326', outProjection = utmPyProj)
+    point = mz.reprojectPoint(point)
+    point = mz.reprojectPoint(obj = point, inProjection = 'epsg:4326', outProjection = utmPyProj)
+    #create grid, interpolate, get grid stats, create geojson    
+    polys = mz.circGrid(pivotSpacing, pivotLength, point, bound)
+    array, bounds = mz.interpolateRaster(x,y,z, inP, utmPyProj, bound)
+    polyStats = mz.getPolyStats(array,polys,bounds)
+    gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj,classes)
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
+    
+@app.route('/createIrreg', methods=['POST'])
+def createIrreg():
+    #get the customized geojson, reproject to 4326, get utmzone, reproject to utm
+    content = str(request.form['jsonval'])
+    bound = mz.geojFCparser(content, 'Polygon')
+    line  = mz.geojFCparser(content, 'LineString')
+    bound = mz.reprojectPoly(bound)
+    line  = mz.reprojectLine(line)
+    utmPyProj = mz.utmzone(bound)
+    bound = mz.reprojectPoly(bound, inProjection = 'epsg:4326', outProjection = utmPyProj)
+    line  = mz.reprojectLine(line, inProjection = 'epsg:4326', outProjection = utmPyProj)
+    #create grid, interpolate, get grid stats, create geojson
+    rSpace = mz.getSpacing(bound, rowSpacing)    
+    polys = mz.irregGrid(bound, line, rSpace)
+    array, bounds = mz.interpolateRaster(x,y,z, inP, utmPyProj, bound)
+    polyStats, polys = mz.getPolyStats(array,polys,bounds)
+    gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj,classes, (rSpace*smooth))
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
+
+
+app.secret_key = '12ad432gfd' 
