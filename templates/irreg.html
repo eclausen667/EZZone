@@ -2,7 +2,21 @@
 <html>
   <head>
     <link rel="stylesheet" href="static/css/hopscotch.css"></link>
+	<link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css"
+          rel="stylesheet">
     <style type="text/css">
+	#left { 
+		border-right: 2px solid; 
+		border-color:#E0E0EB;
+		float: left;
+		padding-right:10px;
+		width: 70%; 
+		}
+	#right { 
+		width: 30%;
+		padding-left: 15px; 
+		float: right;
+		}
     #map {
       width: 750px;
       height: 500px;
@@ -68,6 +82,15 @@
 		background-image: url("static/theme/default/img/draw_polygon_off.png");
 		background-repeat: no-repeat;
 	}
+	#hr {
+		color:#E0E0EB;
+		background-color:#E0E0EB;
+		height:3px;
+		
+		}
+	#button {
+		width: 100px;
+		height: 30px;
 	</style>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
@@ -79,7 +102,7 @@
 	<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?v=3&sensor=true"></script>
 	 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script type="text/javascript">
-		var map, vectors, fc, panel, geojson, json, form, lookup;
+		var map, vectors, fc, panel, geojson, json, form;
 		var lon = 22
 		var lat = 38
 		var zoom = 15
@@ -95,35 +118,15 @@
 				],
 				});
 
+
+
 			fc = {{string|tojson|safe}};
-			var styleMap = new OpenLayers.StyleMap();
-            lookup = {{cmap|tojson|safe}};
-			/*lookup = {
-                1: {fillColor : '#a6cee3' },
-                2: {fillColor : '#1f78b4' },
-                3: {fillColor : '#b2df8a' },
-                4: {fillColor : '#33a02c' },
-                5: {fillColor : '#fb9a99' },
-                6: {fillColor : '#e31a1c' },
-                7: {fillColor : '#fd6f' }
+			geojson = new OpenLayers.Format.GeoJSON();
 
-            }*/
-            styleMap.addUniqueValueRules("default", "zone", lookup);
-
-			geojson = new OpenLayers.Format.GeoJSON({
-			     'internalProjection': map.baseLayer.projection,
-                 'externalProjection': new OpenLayers.Projection("EPSG:4326")
-
-			}
-			    );
-
-            vectors = new OpenLayers.Layer.Vector("Vector Layer", {
-                styleMap : styleMap
-            });
+            vectors = new OpenLayers.Layer.Vector("Vector Layer");
             map.addLayer(vectors);
             vectors.addFeatures(geojson.read(fc));
-            map.zoomToExtent(vectors.getDataExtent());
-
+			map.zoomToExtent(vectors.getDataExtent());
 			map.addControl(new OpenLayers.Control.LayerSwitcher());
             map.addControl(new OpenLayers.Control.MousePosition());
 
@@ -163,7 +166,7 @@
 			var modifyFeatureControl = new OpenLayers.Control.ModifyFeature(vectors, {
                     clickout: true,
                     toggle: true,
-					createVertices: false,
+					createVertices: true,
                     title: "Modify",
                     displayClass: "olControlModify"
                 });
@@ -189,7 +192,7 @@
                     displayClass: 'olControlEditingToolbar'
                 });
 
-            panel.addControls([panMapControl,modifyFeatureControl,dragFeatureControl]);
+            panel.addControls([panMapControl,modifyFeatureControl,addLineControl,deleteFeatureControl,dragFeatureControl]);
             map.addControls([panel]);
 
 
@@ -204,23 +207,50 @@
 			for (i = 0; i < panel.controls.length; i ++) {
 				panel.controls[i].deactivate()
 				}
-			json = geojson.write(vectors.features[0]);
+			if (vectors.features.length < 2) {				
+				alert("Looks like you forgot to add a line!");
+				return false;}
+			if (vectors.features.length > 2){
+				alert("You have too many lines, please place only one!");
+				return false;}
+			json = geojson.write(vectors.features);
 			var formInfo = document.forms['send'];
 			formInfo.jsonval.value = json;
 
 		}
-
     </script>
   </head>
   <body onload="init()">
-    <h1 id="title">GeoJSON Example</h1>
+  <div class="container">
+      <div class="header">
+        <h2 class="text-muted">Agricultural Management Zone Creator</h2>
+      </div>
+	  <hr id="hr">
+	 <div id ="left">
     <div id="map" class="smallmap"></div>
+	<br>
 	<div id="form">
 
-      <form id="send" method="post" action="create" onsubmit="getJSON()" enctype='application/json'>
-        <input type="submit" value="Continue" />
+      <form id="send" method="post" action="createIrreg" onsubmit="return getJSON();" enctype='application/json'>
+        <input type="submit" value="Continue" id="button"/>
 		<input type="hidden" name="jsonval" value=""/>
       </form>
     </div>
+	</div>
+	<div id = "right">
+	<h3 class="text-primary"> Field Boundary Adjustment</h3>
+	<br>
+	  <h4>Use the toolbar at the top right of the map to adjust the boundary of your field.  </h4>
+	  <br>
+	  <img src="static/theme/default/img/draw_polygon_off.png"> Move the entire field
+	  <br>
+	  <br>
+	  <img src="static/theme/default/img/move_feature_off.png"> Adjust the field corners.
+	  <br><br>
+	  <img src="static/theme/default/img/pan_off.png"> Pan the map.
+	  <br>
+	  <br>
+	  <h4>Press Continue to view the created zones.  </h4>
+	  </div>
     </body>
 </html>

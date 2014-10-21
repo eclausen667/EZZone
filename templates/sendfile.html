@@ -204,7 +204,7 @@
 			for (i = 0; i < panel.controls.length; i ++) {
 				panel.controls[i].deactivate()
 				}
-			json = geojson.write(vectors.features[0]);
+			json = geojson.write(vectors.features);
 			var formInfo = document.forms['send'];
 			formInfo.jsonval.value = json;
 
@@ -217,7 +217,7 @@
     <div id="map" class="smallmap"></div>
 	<div id="form">
 
-      <form id="send" method="post" action="create" onsubmit="getJSON()" enctype='application/json'>
+      <form id="send" method="post" action="sendfile" onsubmit="getJSON()" enctype='application/json'>
         <input type="submit" value="Continue" />
 		<input type="hidden" name="jsonval" value=""/>
       </form>

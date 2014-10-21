@@ -5,6 +5,7 @@
           rel="stylesheet">
 	<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
 	<script src="static/bootstrap.file-input.js"></script>
+	<script src="static/bootstrap-slider.js"></script>
 	<style type="text/css">
 	#left { 
 		width: 55%; 
@@ -23,7 +24,29 @@
 		height:3px;
 		
 		}
+	
+	#smoothSlider.slider-selection {
+		background: #BABABA;
+		}
 	</style> 
+	<script type="text/javascript">
+
+function Display(i) {
+		row = document.getElementById("row");
+		vri = document.getElementById("vri");
+        if(i==2){
+            row.style.display="none";
+			vri.style.display="block";
+        }
+		else {
+            row.style.display="block";
+			vri.style.display="none";
+			
+        }
+}
+
+
+	</script>
   </head>
   <body>
     <div class="container">
@@ -39,9 +62,41 @@
 		
 		<h4>Coordinate Reference System in EPSG: </h4><input type="text" name="coord" value="4326"><br><br>
 		<h4>Field Type: </h4>
-		<input type= "radio" name="field" value="1"> Rectangular <br>
-		<input type= "radio" name="field" value="2"> Circular with Variable Rate Irrigation (VRI)<br>
-		<input type= "radio" name="field" value="3"> Irregular and Circular without VRI<br> <br>
+		<input type= "radio" name="field" value="1" checked
+		onClick="Display(1)"> Rectangular <br>
+		<input type= "radio" name="field" value="2"
+		onClick="Display(2)"> Circular with Variable Rate Irrigation (VRI)<br>
+		<input type= "radio" name="field" value="3"
+		onClick="Display(1)"> Irregular and Circular without VRI<br> <br>
+		
+		<h4>Number of Zones: </h4>
+		<select name="classes">
+		<option value=2 >Two </option>
+		<option value=3 >Three </option>
+		<option value=4 >Four </option>
+		<option value=5 >Five </option>
+		<option value=6 >Six </option>
+		<option value=7 >Seven </option>
+		<option value=8 >Eight </option>
+		<option value=9 >Nine </option>
+		</select>
+		<br>
+		<br>
+		<div id="row">
+		<h4>Row Spacing in Meters: </h4><input type="text" name="row">		
+		<br>
+		<br>
+		<h4>Smoothing Factor: </h4><input name ="smooth" type="range" min="1" max="10" value="1" step="1" onchange="showValue(this.value)" />
+		<span id="range" style='font-size: 18pt; font-style:bold; padding-left: 10px; padding-bottom: 2px'>1</span>
+		
+		</div>
+				
+		<div id="vri" style="display:none">
+		<h4>Spacing of Span: </h4><input type="text" name="spacing">
+		<br>
+		<h4>Length of Pivot </h4><input type="text" name="length">
+		</div>
+		<br>
         <input type="submit" value="Continue">
       </form>
       </div>
@@ -57,8 +112,13 @@
 	  
     </div>
 	<script type="text/javascript">
+	function showValue(newValue)
+{
+	document.getElementById("range").innerHTML=newValue;
+}
 	$('input[type=file]').bootstrapFileInput();
 	$('.file-inputs').bootstrapFileInput();
+	
 	</script>
   </body>
 </html>
