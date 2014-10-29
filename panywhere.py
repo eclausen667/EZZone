@@ -3,14 +3,18 @@ local app was changed to include a run.py and __init__.py file.
 '''
 
 
+<<<<<<< HEAD
 #from app import app   #added this for local app
 from flask import render_template, request, Flask
+=======
+from app import app   #added this for local app
+from flask import render_template, request, send_file, Response
+>>>>>>> origin/master
 from werkzeug import secure_filename
 import mz
 import numpy as np
 import os
-
-app = Flask(__name__)
+import tempfile
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(APP_ROOT, 'static/uploads')
@@ -117,12 +121,21 @@ def createRect():
     rSpace = mz.getSpacing(bound, rowSpacing)
     polys = mz.rectGrid(bound, rSpace)
     array, bounds = mz.interpolateRaster(x,y,z,inP, utmPyProj, bound)
+<<<<<<< HEAD
     polyStats = mz.getPolyStats(array,polys,bounds)
     gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj,classes, (rSpace*smooth))
     #create colormap
     cmap = mz.jsonColorCodes(classes)
     #render in browser
     return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
+=======
+    polyStats, polys2 = mz.getPolyStats(array,polys,bounds)
+    gjsonObj = mz.gjsonJenks(polyStats,polys2,utmPyProj,classes, (rSpace*smooth))
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('displayZones.html', string = gjsonObj, cmap = cmap)
+>>>>>>> origin/master
     
 @app.route('/createVri', methods=['POST'])
 def createVri():
@@ -138,12 +151,21 @@ def createVri():
     #create grid, interpolate, get grid stats, create geojson    
     polys = mz.circGrid(pivotSpacing, pivotLength, point, bound)
     array, bounds = mz.interpolateRaster(x,y,z, inP, utmPyProj, bound)
+<<<<<<< HEAD
     polyStats = mz.getPolyStats(array,polys,bounds)
     gjsonObj = mz.gjsonJenks(polyStats,polys,utmPyProj,classes)
     #create colormap
     cmap = mz.jsonColorCodes(classes)
     #render in browser
     return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
+=======
+    polyStats, polys2 = mz.getPolyStats(array,polys,bounds)
+    gjsonObj = mz.gjsonJenks(polyStats,polys2,utmPyProj,classes)
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('displayZones.html', string = gjsonObj, cmap = cmap)
+>>>>>>> origin/master
     
 @app.route('/createIrreg', methods=['POST'])
 def createIrreg():
@@ -157,6 +179,7 @@ def createIrreg():
     bound = mz.reprojectPoly(bound, inProjection = 'epsg:4326', outProjection = utmPyProj)
     line  = mz.reprojectLine(line, inProjection = 'epsg:4326', outProjection = utmPyProj)
     #create grid, interpolate, get grid stats, create geojson
+<<<<<<< HEAD
     rSpace = mz.getSpacing(bound, rowSpacing)    
     polys = mz.irregGrid(bound, line, rSpace)
     array, bounds = mz.interpolateRaster(x,y,z, inP, utmPyProj, bound)
@@ -167,5 +190,23 @@ def createIrreg():
     #render in browser
     return render_template('rectdone.html', string = gjsonObj, cmap = cmap)
 
+=======
+    rSpacing = mz.getSpacing(bound, rowSpacing)    
+    polys = mz.irregGrid(bound, line, rSpacing)
+    array, bounds = mz.interpolateRaster(x,y,z, inP, utmPyProj, bound)
+    polyStats, polys2 = mz.getPolyStats(array,polys,bounds)
+    gjsonObj = mz.gjsonJenks(polyStats,polys2,utmPyProj,classes, (rSpacing*smooth))
+    #create colormap
+    cmap = mz.jsonColorCodes(classes)
+    #render in browser
+    return render_template('displayZones.html', string = gjsonObj, cmap = cmap)
+
+@app.route('/sendFile', methods=['POST'])
+def sendFile():
+    content = str(request.form['jsonval'])
+    return Response(content, 
+            mimetype='application/json',
+            headers={'Content-Disposition':'attachment;filename=zones.geojson'})
+>>>>>>> origin/master
 
 app.secret_key = '12ad432gfd' 

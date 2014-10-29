@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.interpolate import griddata
+<<<<<<< HEAD
 from scipy.spatial import Delaunay
+=======
+>>>>>>> origin/master
 import math
 import pyproj
 from shapely.geometry import MultiPolygon, Polygon, asShape, LineString, mapping, MultiPoint, Point, MultiLineString, GeometryCollection
@@ -13,9 +16,16 @@ import brewer2mpl
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch
 from matplotlib.collections import PatchCollection
+<<<<<<< HEAD
+=======
+from osgeo import gdal
+from osgeo import osr
+import traceback
+>>>>>>> origin/master
 
 def extrapolate_nans(x, y, v):
     '''
+    FROM fatiando PROJECT ON GITHUB
     Extrapolate the NaNs or masked values in a grid INPLACE using nearest
     value.
 
@@ -46,6 +56,7 @@ def extrapolate_nans(x, y, v):
     except ValueError:
         return
 
+<<<<<<< HEAD
 def alpha_shape(points, alpha):
     """
     Compute the alpha shape (concave hull) of a set
@@ -109,6 +120,8 @@ def alpha_shape(points, alpha):
     m = MultiLineString(edge_points)
     triangles = list(polygonize(m))
     return cascaded_union(triangles), edge_points
+=======
+>>>>>>> origin/master
     
 def geojFCparser(obj, geomtype):
     """Parse a geometry from a GeoJSON FeatureCollection
@@ -198,7 +211,11 @@ def boundJson(x,y, geometryType = 1, inProjection = 'epsg:4326' ,outProjection =
     
 def getSpacing(boundary, rowSpacing):
     new = rowSpacing
+<<<<<<< HEAD
     while ((math.sqrt((boundary.area)/1000)) > new):
+=======
+    while ((math.sqrt((boundary.area)/3000)) > new):
+>>>>>>> origin/master
         new = new + rowSpacing
     return new
 
@@ -255,8 +272,15 @@ def reprojectPoly(obj, inProjection = 'epsg:3857', outProjection = 'epsg:4326'):
        
     #transform coords and return polygon
     extCoords = [pyproj.transform(inP,outP,i[0],i[1]) for i in list(poly.exterior.coords)]
+<<<<<<< HEAD
     try:
         intCoords = [[pyproj.transform(inP,outP,j[0],j[1]) for j in list(i.coords)] for i in poly.interiors]
+=======
+    #if polygon has interior
+    try:
+        #create new coords if area of inner polygon is greater than 0
+        intCoords = [[pyproj.transform(inP,outP,j[0],j[1]) for j in list(i.coords)] for i in poly.interiors if (math.floor(Polygon(i).area) > 0)]
+>>>>>>> origin/master
         poly = Polygon(extCoords,intCoords)
     except AttributeError:
         poly = Polygon(extCoords)
@@ -323,6 +347,7 @@ def reprojectLine(obj, inProjection = 'epsg:3857', outProjection = 'epsg:4326'):
         #or a regular geometry?
         except KeyError:
             line = asShape(obj)
+<<<<<<< HEAD
     else:
         line = obj
         
@@ -334,6 +359,19 @@ def reprojectLine(obj, inProjection = 'epsg:3857', outProjection = 'epsg:4326'):
     if type(outProjection) != str:
         outP = outProjection
     else:
+=======
+    else:
+        line = obj
+        
+    #pyproj transformation
+    if type(inProjection) != str:
+        inP = inProjection
+    else:
+        inP = pyproj.Proj(init=inProjection)
+    if type(outProjection) != str:
+        outP = outProjection
+    else:
+>>>>>>> origin/master
         outP = pyproj.Proj(init=outProjection)
         
     newCoords =  [pyproj.transform(inP,outP,i[0],i[1]) for i in list(line.coords)]
@@ -490,13 +528,18 @@ def rectGrid (polygon, rowSpace = 2):
                     nextPoly = []
     return polys
     
+<<<<<<< HEAD
     #create a rectangular grid of polygons given a shapely polygon in UTM coords and a row spacing variable
+=======
+    #create a irregular grid of polygons given a shapely polygon in UTM coords and a row spacing variable
+>>>>>>> origin/master
 def irregGrid (boundary, rowLine, rowSpace = 2):
     '''
     ----------------------------
     POLYGON GRID CREATION
     ----------------------------
     '''
+<<<<<<< HEAD
     #grab coordinates from shapely object
     bbox = boundary.bounds
     center = boundary.centroid
@@ -508,6 +551,21 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
     
     linec = list(rowLine.coords)    
     
+=======
+    #grab coordinates from boundary, calculate centroid for point of rotation
+    bbox = boundary.bounds    
+    pxmin, pymin, pxmax, pymax = bbox      
+    cent = boundary.centroid
+   
+    #calculate angle of rotation from line
+    linec = list(rowLine.coords)
+    linec = unique(np.array(linec))
+    maxy  = linec[0]
+    miny  = linec[1]
+    angle = math.atan2((maxy[1] - miny[1]),(maxy[0] - miny[0]))
+    
+    #first and last points of grid
+>>>>>>> origin/master
     firstPtTop = (pxmin,pymax)
     lastPtTop = (pxmax, pymax)
     lastPtSide = (pxmin, pymin)
@@ -516,8 +574,13 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
     #calculate top and side of field lines to use for number of row and column cubes
     topField = LineString([firstPtTop,lastPtTop])
     sideField = LineString([firstPtTop,lastPtSide])
+<<<<<<< HEAD
     rowCube = topField.length/rowSpace
     colCube = sideField.length/rowSpace
+=======
+    rowCube = math.ceil(topField.length)/math.floor(rowSpace)
+    colCube = math.ceil(sideField.length)/math.floor(rowSpace)
+>>>>>>> origin/master
     
     
     #array of completed polys, structured as so:
@@ -528,6 +591,7 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
     12345
     12345
     '''
+<<<<<<< HEAD
 
 
     #calculate delta x and delta y for angle calculations, these angles don't change
@@ -593,6 +657,67 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
                     #first polygon point for next row is second point of previous polygon
                     firstPt  = oldPoly[1]
 
+=======
+
+
+    #calculate delta x and delta y for angle calculations, these angles don't change
+    dxT = lastPtTop[0] - firstPtTop[0]
+    dyT = lastPtTop[1] - firstPtTop[1]
+    topLineAngle = math.atan2(dyT,dxT)
+
+    dxS = lastPtSide[0] - firstPtTop[0]
+    dyS = lastPtSide[1] - firstPtTop[1]
+    sideLineAngle = math.atan2(dyS,dxS)
+
+    angle1 = sideLineAngle
+    angle2 = topLineAngle
+    angle3 = math.pi + angle1
+
+    firstPolyPt = firstPtTop
+    polys = []    
+    
+    #iterate through rows and columns and create polygons, column by column
+    for j in range(1,int(math.ceil(rowCube)+1)):
+            for i in range(1,int(math.ceil(colCube)+1)):
+            #special case for first entry
+                if i == 1:
+                    #first polygon is special, needed for next column of polygons
+                    firstPoly=[]
+                    firstPoly.append(firstPolyPt)
+
+                    #second point
+                    x2 = firstPolyPt[0] + math.cos(angle1) * rowSpace
+                    y2 = firstPolyPt[1] + math.sin(angle1) * rowSpace
+                    secondPt = [x2,y2]
+                    firstPoly.append(secondPt)
+
+                    #third point
+                    x3 = x2 + math.cos(angle2) * rowSpace
+                    y3 = y2 + math.sin(angle2) * rowSpace
+                    thirdPt = [x3,y3]
+                    firstPoly.append(thirdPt)
+
+                    #fourth point
+                    x4 = x3 + math.cos(angle3) * rowSpace
+                    y4 = y3 + math.sin(angle3) * rowSpace
+                    fourthPt = [x4,y4]
+                    firstPoly.append(fourthPt)
+
+                    #create a shapely polygon and append to polys list, prepare to repeat
+                    poly = Polygon(firstPoly)
+                    poly = rotate(poly, angle, cent, use_radians = True)
+                    if poly.intersects(boundary):
+                        polys.append(poly)
+                    oldPoly = firstPoly
+
+                    #first polygon point for next column is fourth point of polygon
+                    firstPolyPt = fourthPt
+
+                else:
+                    #first polygon point for next row is second point of previous polygon
+                    firstPt  = oldPoly[1]
+
+>>>>>>> origin/master
                     #second point
                     x2 = firstPt[0] + math.cos(angle1) * rowSpace
                     y2 = firstPt[1] + math.sin(angle1) * rowSpace
@@ -607,6 +732,7 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
                     x4 = x3 + math.cos(angle3) * rowSpace
                     y4 = y3 + math.sin(angle3) * rowSpace
                     fourthPt = [x4,y4]
+<<<<<<< HEAD
                     
                     #create shapely poly, add and rotate if in boundary
                     nextPoly=[firstPt,secondPt,thirdPt,fourthPt]
@@ -616,6 +742,14 @@ def irregGrid (boundary, rowLine, rowSpace = 2):
                         polys.append(poly)
 
                     #prepare for next round
+=======
+
+                    nextPoly=[firstPt,secondPt,thirdPt,fourthPt]
+                    poly = Polygon(nextPoly)
+                    poly = rotate(poly, angle, cent, use_radians = True)
+                    if poly.intersects(boundary):
+                        polys.append(poly)    
+>>>>>>> origin/master
                     oldPoly = nextPoly
                     nextPoly = []
     return polys
@@ -685,6 +819,7 @@ def circGrid(spacing,length,center, boundary):
 #interpolate point dataset to gridded surface covering boundary of input polygon, input poly should be in UTM
 def interpolateRaster(x,y,z,inP,outP,poly):
     
+<<<<<<< HEAD
     #reproject x and y points into UTM
     points = reprojectArray(x,y,inP,outP)
     
@@ -698,6 +833,23 @@ def interpolateRaster(x,y,z,inP,outP,poly):
     #create x by y grid from data point min and maxes
     gridX, gridY = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
     
+=======
+    #reproject x and y points to match poly projection
+    points = reprojectArray(x,y,inP,outP)
+    
+    #get dimensions for grid
+    xmin,ymin,xmax,ymax = poly.bounds
+    
+    #size of 1 m grid assuming utm coordinates inputted
+    nx = (int(xmax - xmin + 1))
+    ny = (int(ymax - ymin + 1))
+    
+    # Generate a regular grid to interpolate the data.
+    xi = np.linspace(xmin, xmax, nx)
+    yi = np.linspace(ymin, ymax, ny)
+    gridX, gridY = np.meshgrid(xi, yi) 
+               
+>>>>>>> origin/master
     #interpolate to grid
     gridZ = griddata(points, z, (gridX, gridY), method = 'linear')
     
@@ -705,13 +857,17 @@ def interpolateRaster(x,y,z,inP,outP,poly):
     extrapolate_nans(gridX,gridY,gridZ)
     
     #return interpolated grid plus bounds for use in raster transformation
+<<<<<<< HEAD
     return gridZ, [xmin,xmax,ymin,ymax]
+=======
+    return gridZ, [xmin,ymin,xmax,ymax]
+>>>>>>> origin/master
 
 #get stats that correspond to shapely polygon coverage of a numpy array ie raster
 def getPolyStats(array,polys,bounds,stat = 'mean'):
 
     #get individual bounds variables
-    xmin,xmax,ymin,ymax = bounds
+    xmin,ymin,xmax,ymax = bounds
 
     #get transform for raster stats
     nrows,ncols = np.shape(array)
@@ -720,12 +876,28 @@ def getPolyStats(array,polys,bounds,stat = 'mean'):
     geotransform=(xmin,xres,0,ymin,0,yres)
     
     stats=[]
+<<<<<<< HEAD
     for poly in polys:
         try:
             st = zonal_stats(poly, array.T, stats = stat, transform = geotransform)
             stats.append(st)
         except Exception:
             continue
+=======
+    
+    for idx, poly in enumerate(polys):
+        try:
+            st = zonal_stats(poly, array, stats = stat, transform = geotransform)
+            stats.append(st)
+        except Exception, e:
+            print traceback.format_exc()
+            continue
+    '''
+    for poly in polys:
+        st = zonal_stats(poly, array.T, stats = stat, transform = geotransform)
+        stats.append(st)
+    '''
+>>>>>>> origin/master
     stats = np.array([i.get('mean') for j in stats for i in j])
     stats = stats.astype('float')
     boolm = np.isfinite(stats)
@@ -872,8 +1044,14 @@ def gjsonJenks(polyStats, polys, inP, classes, spacing = None):
     #if simplifying is needed        
     if spacing is not None:
         #simplify polys
+<<<<<<< HEAD
         polyComb = simplifyPolys(polyComb, spacing)
     
+=======
+        for i in range(2):
+            polyComb = simplifyPolys(polyComb, spacing)
+            
+>>>>>>> origin/master
     #reproject multipolygons to epsg:4326
     polyComb = reprojectMultiP(polyComb, inProjection = inP) 
         
@@ -888,6 +1066,7 @@ def gjsonJenks(polyStats, polys, inP, classes, spacing = None):
     
     featureColl = geojson.FeatureCollection(features, crs = crs)
     return geojson.loads(geojson.dumps(featureColl))
+<<<<<<< HEAD
 
 def jsonColorCodes(numClasses):
     #special case for two zones
@@ -899,5 +1078,33 @@ def jsonColorCodes(numClasses):
         cmap = brewer2mpl.get_map('Blues', 'Sequential', numClasses)
         return {key + 1: {'fillColor': value} for (key,value) in enumerate(cmap.hex_colors)}
 
+=======
+
+def jsonColorCodes(numClasses):
+    #special case for two zones
+    if numClasses == 2:
+        cmap = ['#FF0000', '#00FF00']
+        return {key + 1: {'fillColor': value} for (key,value) in enumerate(cmap)}
+    else:
+        #get color map of blues based on number of classes    
+        cmap = brewer2mpl.get_map('Blues', 'Sequential', numClasses)
+        return {key + 1: {'fillColor': value} for (key,value) in enumerate(cmap.hex_colors)}
+
+def createGeotiff(filename, array, bounds, epsg):
+    #found here: http://hydrogeotools.blogspot.com/2013/11/gridding-interpolate-xyz-data.html
+    ncols, nrows = array.shape
+    xmin, ymin, xmax, ymax = bounds
+    xres = (xmax-xmin)/float(ncols)
+    yres = (ymax-ymin)/float(nrows)
+    geotransform=(xmin,xres,0,ymin,0, yres)    
+    outputRaster = gdal.GetDriverByName('GTiff').Create(filename,ncols, nrows, 1 ,gdal.GDT_Int16,['TFW=YES', 'COMPRESS=PACKBITS'])  # Open the file, see here for information about compression: http://gis.stackexchange.com/questions/1104/should-gdal-be-set-to-produce-geotiff-files-with-compression-which-algorithm-sh
+    outputRaster.SetGeoTransform(geotransform)  # Specify its coordinates
+    srs = osr.SpatialReference()                 # Establish its coordinate encoding
+    srs.ImportFromEPSG(epsg)                     # This one specifies SWEREF99 16 30
+    outputRaster.SetProjection( srs.ExportToWkt() )   # Exports the coordinate system to the file
+    outputRaster.GetRasterBand(1).WriteArray(array.T)   # Writes my array to the raster
+    outputRaster = None
+
+>>>>>>> origin/master
 def asshape(geojson):
     return asShape(geojson)
