@@ -1,6 +1,6 @@
-"""
+'''
 local app was changed to include a run.py and __init__.py file.
-"""
+'''
 
 
 from app import app  # added this for local app
@@ -8,51 +8,35 @@ from flask import render_template, request, send_file, Response
 from werkzeug import secure_filename
 import mz
 import numpy as np
-import pandas as pd
 import os
-import requests
-
-app = Flask(__name__)
+import tempfile
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(APP_ROOT, 'static/uploads')
-TEST_FILE = os.path.join(APP_ROOT, 'static/test.csv')
-# noinspection PyUnresolvedReferences
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-# noinspection PySetFunctionToLiteral
 app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'csv'])
-# global variables
-inp = 0
-field_type = 0
+#global variables
+inP = 0
+fieldType = 0
 x = 0
 y = 0
 z = 0
-row_spacing = 0
-pivot_length = 0
-pivot_spacing = 0
+rowSpacing = 0
+pivotLength = 0
+pivotSpacing = 0
+classes = 0
 fieldBound = 0
 smooth = 0
-poly_stats = 0
-polys2 = 0
-utm_pyproj = 0
-row_space = 0
-poly_comb = 0
-class_breaks = 0
 
 
 def allowed_file(filename):
-    """
-
-    :param filename:
-    :return:
-    """
     return '.' in filename and \
            filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
 
 
 @app.route('/')
 def index():
-    return render_template('index2.html')
+    return render_template('index.html')
 
 
 @app.route('/upload', methods=['POST', 'GET'])
@@ -200,7 +184,6 @@ def createIrreg():
     return render_template('displayZones.html', string=gjsonObj, cmap=cmap)
 
 
-# noinspection PyDocstring,PyPep8Naming
 @app.route('/sendFile', methods=['POST'])
 def sendFile():
     content = str(request.form['jsonval'])
