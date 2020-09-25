@@ -16,6 +16,12 @@ from osgeo import gdal
 from osgeo import osr
 
 
+def extrapolate_nans(x, y, v):
+    '''
+    FROM fatiando PROJECT ON GITHUB
+    Extrapolate the NaNs or masked values in a grid INPLACE using nearest
+    value.
+
 
 # noinspection PyUnresolvedReferences
 def extrapolate_nans(x, y, v):
@@ -49,20 +55,24 @@ def extrapolate_nans(x, y, v):
         return
 
 
-def geojson_fc_parser(obj, geomtype):
-    """
-    Parse a geometry from a GeoJSON FeatureCollection
+def geojFCparser(obj, geomtype):
+    """Parse a geometry from a GeoJSON FeatureCollection
 
-    :param obj: the FeatureCollection object to parse a geometry from
-    :type obj: str or geojson.FeatureCollection or dict
-    :param geomtype: the desired geometry type to extract
-            must be one of the following:("Point", "MultiPoint", "LineString",
-            "MultiLineString", "Polygon", "MultiPolygon")
-    :type geomtype: str
-    :returns: desired geometry from FeatureCollection
-    :rtype: geojson object
-    """
+    Parameters
+    __________
 
+        obj : dict
+            the FeatureCollection object as type dict, or will be loaded to dict
+
+        geomtype : str
+            the desired geometry type to extract
+            must be one of the following:("Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon")
+
+    Returns
+    _______
+
+        dict of geometry object if inside FeatureCollection, else string error message
+    """
     if geomtype not in ("Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon"):
         return 'Invalid GeomType'
     # if our object is a raw string
@@ -77,8 +87,7 @@ def geojson_fc_parser(obj, geomtype):
     return 'GeomType not in FeatureCollection'
 
 
-# noinspection PyUnusedLocal
-def bound_json(x, y, geometry_type=1, in_projection='epsg:4326', out_projection='epsg:3857'):
+def boundJson(x, y, geometryType=1, inProjection='epsg:4326', outProjection='epsg:3857'):
     """
     Create a polygon GeoJSON boundary from x and y coordinate arrays
 
@@ -107,7 +116,7 @@ def bound_json(x, y, geometry_type=1, in_projection='epsg:4326', out_projection=
     crs = {
         "type": "name",
         "properties": {
-            "name": outp
+            "name": outP
         }}
 
     inp = pyproj.Proj(init=inp)
@@ -116,53 +125,43 @@ def bound_json(x, y, geometry_type=1, in_projection='epsg:4326', out_projection=
     # get the point coordinates
     points = np.column_stack([x, y])
 
-    # if rectangular desired, find corresponding point for xmin, ymin, xmax, ymax
     if g == 1:
-        print "in function"
-        xmax = [x.max(), y[np.where(x == x.max())].item(0)]
-        xmax = list(pyproj.transform(inp, outp, xmax[0], xmax[1]))
+        xMax = [x.max(), y[np.where(x == x.max())].item(0)]
+        xMax = list(pyproj.transform(inP, outP, xMax[0], xMax[1]))
 
-        ymax = [x[np.where(y == y.max())].item(0), y.max()]
-        ymax = list(pyproj.transform(inp, outp, ymax[0], ymax[1]))
+        yMax = [x[np.where(y == y.max())].item(0), y.max()]
+        yMax = list(pyproj.transform(inP, outP, yMax[0], yMax[1]))
 
-        xmin = [x.min(), y[np.where(x == x.min())].item(0)]
-        xmin = list(pyproj.transform(inp, outp, xmin[0], xmin[1]))
+        xMin = [x.min(), y[np.where(x == x.min())].item(0)]
+        xMin = list(pyproj.transform(inP, outP, xMin[0], xMin[1]))
 
-        ymin = [x[np.where(y == y.min())].item(0), y.min()]
-        ymin = list(pyproj.transform(inp, outp, ymin[0], ymin[1]))
+        yMin = [x[np.where(y == y.min())].item(0), y.min()]
+        yMin = list(pyproj.transform(inP, outP, yMin[0], yMin[1]))
 
-        geoj = geojson.Polygon([[xmax, ymax, xmin, ymin, xmax]], crs=crs)
+        geoJson = geojson.Polygon([[xMax, yMax, xMin, yMin, xMax]], crs=crs)
 
     elif g == 2 or g == 3:
         points = MultiPoint(points)
         m = mapping(points.convex_hull)
         for i in m['coordinates']:
             for j in i:
-                jfeat.append(pyproj.transform(inp, outp, j[0], j[1]))
+                jFeat.append(pyproj.transform(inP, outP, j[0], j[1]))
 
-        geoj = geojson.Polygon([jfeat], crs=crs)
-    else:
-        return "Invalid geomtype"
+        geoJson = geojson.Polygon([jFeat], crs=crs)
+
     # return geoJson
-    return geojson.loads(geojson.dumps(geoj))
+    return geojson.loads(geojson.dumps(geoJson))  # , points
 
 
-def get_spacing(boundary, row_spacing):
-    """
-
-    :param boundary:
-    :param row_spacing:
-    :return:
-    """
-    new = row_spacing
-    while new < (math.sqrt(boundary.area) / 100):
-        new = new + row_spacing
+def getSpacing(boundary, rowSpacing):
+    new = rowSpacing
+    while ((math.sqrt((boundary.area)/3000)) > new):
+        new = new + rowSpacing
     return new
 
 
 # orders y elements least to greatest of a 2d numpy array and eliminates duplicate values,
 # returning the new array
-# noinspection PyUnresolvedReferences
 def unique(a):
     """
 
@@ -176,8 +175,9 @@ def unique(a):
     ui[1:] = (diff != 0).any(axis=1)
     return a[ui]
 
-
 # returns the difference between two x points
+
+
 def deltax(xy1, xy2):
     """
 
@@ -192,31 +192,22 @@ def deltax(xy1, xy2):
 def epsg_int(string_epsg):
     """
 
-    :param string_epsg:
-    :return:
-    """
+# returns integer of epsg coordinates:
+
+
+def epsgInt(stringEpsg):
     li = []
     for l in string_epsg:
         if l.isdigit():
             li.append(l)
     return int(''.join(li))
 
-
 # reproject geojson object/string, shapely polygon/multip and return a shapely polygon,
 # can pass projection as string or pyproj object
-def reproject_poly(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
-    # if our object is a geojson Polygon instance
-    """
 
-    :param obj:
-    :param in_projection:
-    :param out_projection:
-    :return:
-    """
-    # noinspection PyUnresolvedReferences
-    if isinstance(obj, geojson.geometry.Polygon):
-        obj = asShape(obj)
-        poly = obj
+
+def reprojectPoly(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
+
     # if our object is a raw string
     if type(obj) == str:
         obj = geojson.loads(obj)
@@ -233,62 +224,52 @@ def reproject_poly(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
         poly = obj
 
     # pyproj transformation
-    if type(in_projection) != str:
-        inp = in_projection
+    if type(inProjection) != str:
+        inP = inProjection
     else:
         inp = pyproj.Proj(init=in_projection)
     if type(out_projection) != str:
         outp = out_projection
     else:
-        outp = pyproj.Proj(init=out_projection)
-    if not poly.is_valid:
-        poly = poly.buffer(0)
+        outP = pyproj.Proj(init=outProjection)
+
     # transform coords and return polygon
-    ext_coords = [pyproj.transform(inp, outp, i[0], i[1]) for i in list(poly.exterior.coords) if
-                  not Point(i).within(poly)]
+    extCoords = [pyproj.transform(inP, outP, i[0], i[1])
+                 for i in list(poly.exterior.coords)]
     # if polygon has interior
     try:
         # create new coords if area of inner polygon is greater than 0
-        int_coords = [[pyproj.transform(inp, outp, j[0], j[1]) for j in list(i.coords)] for i in poly.interiors if
-                      (math.floor(Polygon(i).area) > 0)]
-        poly = Polygon(ext_coords, int_coords)
+        intCoords = [[pyproj.transform(inP, outP, j[0], j[1]) for j in list(
+            i.coords)] for i in poly.interiors if (math.floor(Polygon(i).area) > 0)]
+        poly = Polygon(extCoords, intCoords)
     except AttributeError:
         poly = Polygon(ext_coords)
     return poly
 
 
-# noinspection PyTypeChecker
-def reproject_multip(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
-    """
-    :type obj: object
-    :param in_projection:
-    :param out_projection:
-    :param obj:
-    :type in_projection: object
-    :rtype : object
-    """
+def reprojectMultiP(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
     # array for new multipolygons
-    multipolys = []
+    multiPolys = []
     # iterate through list of multipolygons
     for polys in obj:
         # array for reprojected polygons
-        newpolys = []
+        newPolys = []
         # try to iterate through multipolygon, except when it is only a polygon
         try:
             for p in polys:
-                newpolys.append(reproject_poly(p, in_projection, out_projection))
+                newPolys.append(reprojectPoly(p, inProjection, outProjection))
             # append multipolygon to list of multipolygons
-            multipolys.append(MultiPolygon(newpolys))
+            multiPolys.append(MultiPolygon(newPolys))
         except TypeError:
-            multipolys.append(reproject_poly(polys, in_projection, out_projection))
-    return multipolys
-
+            multiPolys.append(reprojectPoly(
+                polys, inProjection, outProjection))
+    return multiPolys
 
 # reproject geojson/shapely point
-def reproject_point(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
-    # if object is instance of geojson class
-    if isinstance(obj, geojson.geometry.Point):
-        obj = asShape(obj)
+
+
+def reprojectPoint(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
+
     # if our object is a raw string
     if type(obj) == str:
         obj = geojson.loads(obj)
@@ -304,24 +285,24 @@ def reproject_point(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
         point = obj
 
     # pyproj transformation
-    if type(in_projection) != str:
-        inp = in_projection
+    if type(inProjection) != str:
+        inP = inProjection
     else:
         inp = pyproj.Proj(init=in_projection)
     if type(out_projection) != str:
         outp = out_projection
     else:
-        outp = pyproj.Proj(init=out_projection)
+        outP = pyproj.Proj(init=outProjection)
 
-    new_coords = [pyproj.transform(inp, outp, i[0], i[1]) for i in list(point.coords)]
-    return Point(new_coords)
-
+    newCoords = [pyproj.transform(inP, outP, i[0], i[1])
+                 for i in list(point.coords)]
+    return Point(newCoords)
 
 # reproject geojson/shapely point
-def reproject_line(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
-    # if object is instance of geojson class
-    if isinstance(obj, geojson.geometry.LineString):
-        obj = asShape(obj)
+
+
+def reprojectLine(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
+
     # if our object is a raw string
     if type(obj) == str:
         obj = geojson.loads(obj)
@@ -337,31 +318,33 @@ def reproject_line(obj, in_projection='epsg:3857', out_projection='epsg:4326'):
         line = obj
 
     # pyproj transformation
-    if type(in_projection) != str:
-        inp = in_projection
+    if type(inProjection) != str:
+        inP = inProjection
     else:
         inp = pyproj.Proj(init=in_projection)
     if type(out_projection) != str:
         outp = out_projection
     else:
-        outp = pyproj.Proj(init=out_projection)
+        outP = pyproj.Proj(init=outProjection)
 
-    new_coords = [pyproj.transform(inp, outp, i[0], i[1]) for i in list(line.coords)]
-    return LineString(new_coords)
-
+    newCoords = [pyproj.transform(inP, outP, i[0], i[1])
+                 for i in list(line.coords)]
+    return LineString(newCoords)
 
 # reproject arrays of separate x and y values
-def reproject_array(x, y, inp, outp):
+
+
+def reprojectArray(x, y, inP, outP):
     # stack x, y coords
     points = np.column_stack([x, y])
 
     # pyproj transformation
-    if type(inp) == str:
-        inp = pyproj.Proj(init=inp)
-    if type(outp) == str:
-        outp = pyproj.Proj(init=outp)
+    if type(inP) == str:
+        inP = pyproj.Proj(init=inP)
+    if type(outP) == str:
+        outP = pyproj.Proj(init=outP)
     # 2d array of coords reprojected
-    return np.array([pyproj.transform(inp, outp, p[0], p[1]) for p in points])
+    return np.array([pyproj.transform(inP, outP, p[0], p[1]) for p in points])
 
 
 # return a pyproj projection object given an array of coordinates or shapely polygon in lat/long dd
@@ -370,7 +353,7 @@ def utmzone(xy):
     if isinstance(xy, Polygon):
         xy = xy.exterior.coords[0]
     # calculate zone number, include 1 if southern hemisphere
-    zone = (int(math.floor((xy[0] + 180) / 6) + 1), 1 if xy[1] < 0 else 0)
+    zone = (int(math.floor((xy[0] + 180)/6) + 1), 1 if xy[1] < 0 else 0)
     # if in southern hemisphere
     if zone[1] == 1:
         return pyproj.Proj('+proj=utm +zone=' + str(zone[0]) + ', +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs')
@@ -378,18 +361,17 @@ def utmzone(xy):
 
 
 # create a rectangular grid of polygons given a shapely polygon in UTM coords and a row spacing variable
-# noinspection PyUnboundLocalVariable,PyUnusedLocal
-def grid_rect(polygon, row_space=2):
-    """
+def rectGrid(polygon, rowSpace=2):
+    '''
     ----------------------------
     POLYGON GRID CREATION
     ----------------------------
-    """
+    '''
     # grab coordinates from shapely object
-    poly_coords = list(polygon.exterior.coords)
+    polyCoords = list(polygon.exterior.coords)
 
     # eliminate duplicate closing polygon point
-    xy = np.array(poly_coords)
+    xy = np.array(polyCoords)
     xy = unique(xy)
 
     # find max y and second to max y to find top line of polygon, min to find side line
@@ -397,25 +379,24 @@ def grid_rect(polygon, row_space=2):
     nmaxy = xy[2]
 
     # find delta x between two top points, if positive, maxy is top left, if negative, nmaxy is top left
-    # moving from left -------> right always,
-    # use last_pt_side and last_pt_top/first_pt_top to calculate side line length
+    # moving from left -------> right always, use lastPtSide and lastPtTop/firstPtTop to calculate side line length
     dxtop = deltax(maxy, nmaxy)
 
     # find first point and top and side points from dxtop
     if dxtop > 0:
-        first_pt_top = maxy
-        last_pt_top = nmaxy
-        last_pt_side = xy[1]
-    elif dxtop < 0:
-        first_pt_top = nmaxy
-        last_pt_top = maxy
-        last_pt_side = xy[0]
+        firstPtTop = maxy
+        lastPtTop = nmaxy
+        lastPtSide = xy[1]
+    if dxtop < 0:
+        firstPtTop = nmaxy
+        lastPtTop = maxy
+        lastPtSide = xy[0]
 
     # calculate top and side of field lines to use for number of row and column cubes
-    top_field = LineString([first_pt_top, last_pt_top])
-    side_field = LineString([first_pt_top, last_pt_side])
-    row_cube = top_field.length / row_space
-    col_cube = side_field.length / row_space
+    topField = LineString([firstPtTop, lastPtTop])
+    sideField = LineString([firstPtTop, lastPtSide])
+    rowCube = topField.length/rowSpace
+    colCube = sideField.length/rowSpace
 
     # array of completed polys, structured as so:
     '''
@@ -427,13 +408,13 @@ def grid_rect(polygon, row_space=2):
     '''
 
     # calculate delta x and delta y for angle calculations, these angles don't change
-    dxt = last_pt_top[0] - first_pt_top[0]
-    dyt = last_pt_top[1] - first_pt_top[1]
-    top_line_angle = math.atan2(dyt, dxt)
+    dxT = lastPtTop[0] - firstPtTop[0]
+    dyT = lastPtTop[1] - firstPtTop[1]
+    topLineAngle = math.atan2(dyT, dxT)
 
-    dxs = last_pt_side[0] - first_pt_top[0]
-    dys = last_pt_side[1] - first_pt_top[1]
-    side_line_angle = math.atan2(dys, dxs)
+    dxS = lastPtSide[0] - firstPtTop[0]
+    dyS = lastPtSide[1] - firstPtTop[1]
+    sideLineAngle = math.atan2(dyS, dxS)
 
     angle1 = side_line_angle
     angle2 = top_line_angle
@@ -443,108 +424,95 @@ def grid_rect(polygon, row_space=2):
     polys = []
 
     # iterate through rows and columns and create polygons, column by column
-    for j in range(1, int(math.ceil(row_cube))):
-        for i in range(1, int(math.ceil(col_cube))):
+    for j in range(1, int(math.ceil(rowCube)+1)):
+        for i in range(1, int(math.ceil(colCube)+1)):
             # special case for first entry
             if i == 1:
-                # first polygon is special, needed for next column of polygons
-                first_poly = [first_poly_pt]
+                    # first polygon is special, needed for next column of polygons
+                firstPoly = []
+                firstPoly.append(firstPolyPt)
 
                 # second point
-                x2 = first_poly_pt[0] + math.cos(angle1) * row_space
-                y2 = first_poly_pt[1] + math.sin(angle1) * row_space
-                second_pt = [x2, y2]
-                first_poly.append(second_pt)
+                x2 = firstPolyPt[0] + math.cos(angle1) * rowSpace
+                y2 = firstPolyPt[1] + math.sin(angle1) * rowSpace
+                secondPt = [x2, y2]
+                firstPoly.append(secondPt)
 
                 # third point
-                x3 = x2 + math.cos(angle2) * row_space
-                y3 = y2 + math.sin(angle2) * row_space
-                third_pt = [x3, y3]
-                first_poly.append(third_pt)
+                x3 = x2 + math.cos(angle2) * rowSpace
+                y3 = y2 + math.sin(angle2) * rowSpace
+                thirdPt = [x3, y3]
+                firstPoly.append(thirdPt)
 
                 # fourth point
-                x4 = x3 + math.cos(angle3) * row_space
-                y4 = y3 + math.sin(angle3) * row_space
-                fourth_pt = [x4, y4]
-                first_poly.append(fourth_pt)
+                x4 = x3 + math.cos(angle3) * rowSpace
+                y4 = y3 + math.sin(angle3) * rowSpace
+                fourthPt = [x4, y4]
+                firstPoly.append(fourthPt)
 
                 # create a shapely polygon and append to polys list, prepare to repeat
-                poly = Polygon(first_poly)
-                if poly.within(polygon):
-                    polys.append(poly)
-                elif poly.intersects(polygon):
-                    polys.append(poly.intersection(polygon))
-                old_poly = first_poly
+                polys.append(Polygon(firstPoly))
+                oldPoly = firstPoly
 
                 # first polygon point for next column is fourth point of polygon
-                first_poly_pt = fourth_pt
+                firstPolyPt = fourthPt
 
             else:
                 # first polygon point for next row is second point of previous polygon
-                first_pt = old_poly[1]
+                firstPt = oldPoly[1]
 
                 # second point
-                x2 = first_pt[0] + math.cos(angle1) * row_space
-                y2 = first_pt[1] + math.sin(angle1) * row_space
-                second_pt = [x2, y2]
+                x2 = firstPt[0] + math.cos(angle1) * rowSpace
+                y2 = firstPt[1] + math.sin(angle1) * rowSpace
+                secondPt = [x2, y2]
 
                 # third point
-                x3 = x2 + math.cos(angle2) * row_space
-                y3 = y2 + math.sin(angle2) * row_space
-                third_pt = [x3, y3]
+                x3 = x2 + math.cos(angle2) * rowSpace
+                y3 = y2 + math.sin(angle2) * rowSpace
+                thirdPt = [x3, y3]
 
                 # fourth point
-                x4 = x3 + math.cos(angle3) * row_space
-                y4 = y3 + math.sin(angle3) * row_space
-                fourth_pt = [x4, y4]
+                x4 = x3 + math.cos(angle3) * rowSpace
+                y4 = y3 + math.sin(angle3) * rowSpace
+                fourthPt = [x4, y4]
 
-                next_poly = [first_pt, second_pt, third_pt, fourth_pt]
-                poly = Polygon(next_poly)
-                if poly.within(polygon):
-                    polys.append(poly)
-                elif poly.intersects(polygon):
-                    polys.append(poly.intersection(polygon))
-                old_poly = next_poly
-                next_poly = []
+                nextPoly = [firstPt, secondPt, thirdPt, fourthPt]
+                polys.append(Polygon(nextPoly))
+                oldPoly = nextPoly
+                nextPoly = []
     return polys
 
     # create a irregular grid of polygons given a shapely polygon in UTM coords and a row spacing variable
 
 
-# noinspection PyUnboundLocalVariable,PyUnusedLocal
-def grid_irreg(boundary, row_line=None, row_space=2):
-    """
+def irregGrid(boundary, rowLine, rowSpace=2):
+    '''
     ----------------------------
     POLYGON GRID CREATION
     ----------------------------
-    """
+    '''
     # grab coordinates from boundary, calculate centroid for point of rotation
     bbox = boundary.bounds
     pxmin, pymin, pxmax, pymax = bbox
-    if row_line:
-        cent = boundary.centroid
-        pxmin -= 200
-        pymin -= 200
-        pxmax += 200
-        pymax += 200
+    cent = boundary.centroid
 
-        # calculate angle of rotation from line
-        linec = list(row_line.coords)
-        linec = unique(np.array(linec))
-        maxy = linec[0]
-        miny = linec[1]
-        angle = math.atan2((maxy[1] - miny[1]), (maxy[0] - miny[0]))
+    # calculate angle of rotation from line
+    linec = list(rowLine.coords)
+    linec = unique(np.array(linec))
+    maxy = linec[0]
+    miny = linec[1]
+    angle = math.atan2((maxy[1] - miny[1]), (maxy[0] - miny[0]))
 
     # first and last points of grid
-    first_pt_top = (pxmin, pymax)
-    last_pt_top = (pxmax, pymax)
-    last_pt_side = (pxmin, pymin)
+    firstPtTop = (pxmin, pymax)
+    lastPtTop = (pxmax, pymax)
+    lastPtSide = (pxmin, pymin)
 
     # calculate top and side of field lines to use for number of row and column cubes
-    top_field = LineString([first_pt_top, last_pt_top])
-    side_field = LineString([first_pt_top, last_pt_side])
-    row_cube = math.ceil(top_field.length) / math.floor(row_space)
-    col_cube = math.ceil(side_field.length) / math.floor(row_space)
+    topField = LineString([firstPtTop, lastPtTop])
+    sideField = LineString([firstPtTop, lastPtSide])
+    rowCube = math.ceil(topField.length)/math.floor(rowSpace)
+    colCube = math.ceil(sideField.length)/math.floor(rowSpace)
 
     # array of completed polys, structured as so:
     '''
@@ -556,206 +524,193 @@ def grid_irreg(boundary, row_line=None, row_space=2):
     '''
 
     # calculate delta x and delta y for angle calculations, these angles don't change
-    dxt = last_pt_top[0] - first_pt_top[0]
-    dyt = last_pt_top[1] - first_pt_top[1]
-    top_line_angle = math.atan2(dyt, dxt)
+    dxT = lastPtTop[0] - firstPtTop[0]
+    dyT = lastPtTop[1] - firstPtTop[1]
+    topLineAngle = math.atan2(dyT, dxT)
 
-    dxs = last_pt_side[0] - first_pt_top[0]
-    dys = last_pt_side[1] - first_pt_top[1]
-    side_line_angle = math.atan2(dys, dxs)
+    dxS = lastPtSide[0] - firstPtTop[0]
+    dyS = lastPtSide[1] - firstPtTop[1]
+    sideLineAngle = math.atan2(dyS, dxS)
 
     angle1 = side_line_angle
     angle2 = top_line_angle
     angle3 = math.pi + angle1
 
-    first_poly_pt = first_pt_top
+    firstPolyPt = firstPtTop
     polys = []
 
     # iterate through rows and columns and create polygons, column by column
-    for j in range(1, int(math.ceil(row_cube) + 1)):
-        for i in range(1, int(math.ceil(col_cube) + 1)):
+    for j in range(1, int(math.ceil(rowCube)+1)):
+        for i in range(1, int(math.ceil(colCube)+1)):
             # special case for first entry
             if i == 1:
                 # first polygon is special, needed for next column of polygons
-                first_poly = [first_poly_pt]
+                firstPoly = []
+                firstPoly.append(firstPolyPt)
 
                 # second point
-                x2 = first_poly_pt[0] + math.cos(angle1) * row_space
-                y2 = first_poly_pt[1] + math.sin(angle1) * row_space
-                second_pt = [x2, y2]
-                first_poly.append(second_pt)
+                x2 = firstPolyPt[0] + math.cos(angle1) * rowSpace
+                y2 = firstPolyPt[1] + math.sin(angle1) * rowSpace
+                secondPt = [x2, y2]
+                firstPoly.append(secondPt)
 
                 # third point
-                x3 = x2 + math.cos(angle2) * row_space
-                y3 = y2 + math.sin(angle2) * row_space
-                third_pt = [x3, y3]
-                first_poly.append(third_pt)
+                x3 = x2 + math.cos(angle2) * rowSpace
+                y3 = y2 + math.sin(angle2) * rowSpace
+                thirdPt = [x3, y3]
+                firstPoly.append(thirdPt)
 
                 # fourth point
-                x4 = x3 + math.cos(angle3) * row_space
-                y4 = y3 + math.sin(angle3) * row_space
-                fourth_pt = [x4, y4]
-                first_poly.append(fourth_pt)
+                x4 = x3 + math.cos(angle3) * rowSpace
+                y4 = y3 + math.sin(angle3) * rowSpace
+                fourthPt = [x4, y4]
+                firstPoly.append(fourthPt)
 
                 # create a shapely polygon and append to polys list, prepare to repeat
-                poly = Polygon(first_poly)
-                if row_line:
-                    poly = rotate(poly, angle, cent, use_radians=True)
-                if poly.within(boundary):
+                poly = Polygon(firstPoly)
+                poly = rotate(poly, angle, cent, use_radians=True)
+                if poly.intersects(boundary):
                     polys.append(poly)
-                elif poly.intersects(boundary):
-                    polys.append(poly.intersection(boundary))
-                old_poly = first_poly
+                oldPoly = firstPoly
 
                 # first polygon point for next column is fourth point of polygon
-                first_poly_pt = fourth_pt
+                firstPolyPt = fourthPt
 
             else:
                 # first polygon point for next row is second point of previous polygon
-                first_pt = old_poly[1]
+                firstPt = oldPoly[1]
 
                 # second point
-                x2 = first_pt[0] + math.cos(angle1) * row_space
-                y2 = first_pt[1] + math.sin(angle1) * row_space
-                second_pt = [x2, y2]
+                x2 = firstPt[0] + math.cos(angle1) * rowSpace
+                y2 = firstPt[1] + math.sin(angle1) * rowSpace
+                secondPt = [x2, y2]
 
                 # third point
-                x3 = x2 + math.cos(angle2) * row_space
-                y3 = y2 + math.sin(angle2) * row_space
-                third_pt = [x3, y3]
+                x3 = x2 + math.cos(angle2) * rowSpace
+                y3 = y2 + math.sin(angle2) * rowSpace
+                thirdPt = [x3, y3]
 
                 # fourth point
-                x4 = x3 + math.cos(angle3) * row_space
-                y4 = y3 + math.sin(angle3) * row_space
-                fourth_pt = [x4, y4]
+                x4 = x3 + math.cos(angle3) * rowSpace
+                y4 = y3 + math.sin(angle3) * rowSpace
+                fourthPt = [x4, y4]
 
-                next_poly = [first_pt, second_pt, third_pt, fourth_pt]
-                poly = Polygon(next_poly)
-                if row_line:
-                    poly = rotate(poly, angle, cent, use_radians=True)
-                if poly.within(boundary):
+                nextPoly = [firstPt, secondPt, thirdPt, fourthPt]
+                poly = Polygon(nextPoly)
+                poly = rotate(poly, angle, cent, use_radians=True)
+                if poly.intersects(boundary):
                     polys.append(poly)
-                elif poly.intersects(boundary):
-                    polys.append(poly.intersection(boundary))
-                old_poly = next_poly
-                next_poly = []
+                oldPoly = nextPoly
+                nextPoly = []
     return polys
 
-
 # helper function to calculate point from relative polar coordinates (degrees)
-def polar_point(origin_point, angle, distance):
-    return [origin_point.x + math.sin(math.radians(angle)) * distance,
-            origin_point.y + math.cos(math.radians(angle)) * distance]
 
 
-# noinspection PyUnboundLocalVariable
-def grid_circ(spacing, length, center, boundary):
+def polarPoint(originPoint, angle,  distance):
+    return [originPoint.x + math.sin(math.radians(angle)) * distance, originPoint.y + math.cos(math.radians(angle)) * distance]
+
+
+def circGrid(spacing, length, center, boundary):
+
     # circle radius
     radius = spacing
     # end of radius
-    radius_end = int(math.ceil(length / radius))
+    radiusEnd = int(math.ceil(length/radius))
     # width of sector in degrees
-    sector_width = 4.0
+    sectorWidth = 4.0
     polys = []  # array for storing features to plot
 
-    for x in xrange(0, int(360.0 / sector_width)):
-        for r in xrange(1, radius_end + 1):
+    for x in xrange(0, int(360.0/sectorWidth)):
+        for r in xrange(1, radiusEnd + 1):
             if r == 1:
-                segment_vertices = []
+                segmentVertices = []
                 # first point is center
-                center_point = polar_point(center, 0, 0)
-                segment_vertices.append(center_point)
+                centerPoint = polarPoint(center, 0, 0)
+                segmentVertices.append(centerPoint)
 
                 # second point
-                first_vertex = polar_point(center, x * sector_width, r * radius)
-                segment_vertices.append(first_vertex)
+                firstVertex = polarPoint(center, x*sectorWidth, r * radius)
+                segmentVertices.append(firstVertex)
 
                 # third point
-                second_vertex = polar_point(center, x * sector_width + sector_width, r * radius)
-                segment_vertices.append(second_vertex)
+                secondVertex = polarPoint(
+                    center, x * sectorWidth+sectorWidth, r * radius)
+                segmentVertices.append(secondVertex)
 
                 # center point ends polygon
-                segment_vertices.append(center_point)
-                old_vertices = segment_vertices
+                segmentVertices.append(centerPoint)
+                oldVertices = segmentVertices
 
                 # add to polys if in field boundary
-                poly = Polygon(segment_vertices)
-                if poly.within(boundary):
+                poly = Polygon(segmentVertices)
+                if poly.intersects(boundary):
                     polys.append(poly)
             else:
-                new_vertices = []
-                first_vertex = old_vertices[1]
-                new_vertices.append(first_vertex)
+                newVertices = []
+                firstVertex = oldVertices[1]
+                newVertices.append(firstVertex)
 
-                second_vertex = polar_point(center, x * sector_width, r * radius)
-                new_vertices.append(second_vertex)
+                secondVertex = polarPoint(center, x*sectorWidth, r * radius)
+                newVertices.append(secondVertex)
 
-                third_vertex = polar_point(center, x * sector_width + sector_width, r * radius)
-                new_vertices.append(third_vertex)
+                thirdVertex = polarPoint(
+                    center, x * sectorWidth+sectorWidth, r * radius)
+                newVertices.append(thirdVertex)
 
-                fourth_vertex = old_vertices[2]
-                new_vertices.append(fourth_vertex)
+                fourthVertex = oldVertices[2]
+                newVertices.append(fourthVertex)
 
                 # add to polys if in field boundary
-                poly = Polygon(new_vertices)
-                if poly.within(boundary):
+                poly = Polygon(newVertices)
+                if poly.intersects(boundary):
                     polys.append(poly)
 
-                old_vertices = new_vertices
+                oldVertices = newVertices
 
     return polys
 
-
 # interpolate point dataset to gridded surface covering boundary of input polygon, input poly should be in UTM
-def interpolate_raster(x, y, z, inp, outp, poly, spacing=None):
+
+
+def interpolateRaster(x, y, z, inP, outP, poly):
+
     # reproject x and y points to match poly projection
-    points = reproject_array(x, y, inp, outp)
+    points = reprojectArray(x, y, inP, outP)
 
     # get dimensions for grid
     xmin, ymin, xmax, ymax = poly.bounds
 
-    # if row spacing is smaller than or equal to 2 m grid spacing
-    if ((xmax - xmin) <= 200) or ((ymax - ymin) <= 200):
-        # and spacing is smaller than  or equal to 2 m
-        if spacing <= 2:
-            # create grid with size of .5 m grid assuming utm coordinates inputted
-            nx = round((xmax - xmin) * 2)
-            ny = round((ymax - ymin) * 2)
-        else:
-            # create grid with size of 2 m grid assuming utm coordinates inputted
-            nx = round((xmax - xmin) / 2)
-            ny = round((ymax - ymin) / 2)
-    # else use 2 m spacing
-    else:
-        # create grid with size of 2 m grid assuming utm coordinates inputted
-        nx = round((xmax - xmin) / 2)
-        ny = round((ymax - ymin) / 2)
+    # size of 1 m grid assuming utm coordinates inputted
+    nx = (int(xmax - xmin + 1))
+    ny = (int(ymax - ymin + 1))
 
     # Generate a regular grid to interpolate the data.
     xi = np.linspace(xmin, xmax, nx)
     yi = np.linspace(ymin, ymax, ny)
-    gridx, gridy = np.meshgrid(xi, yi)
+    gridX, gridY = np.meshgrid(xi, yi)
 
     # interpolate to grid
-    gridz = griddata(points, z, (gridx, gridy), method='linear')
+    gridZ = griddata(points, z, (gridX, gridY), method='linear')
 
     # extrapolate beyond boundaries
-    extrapolate_nans(gridx, gridy, gridz)
+    extrapolate_nans(gridX, gridY, gridZ)
 
     # return interpolated grid plus bounds for use in raster transformation
-    return gridz, [xmin, ymin, xmax, ymax]
-
+    return gridZ, [xmin, ymin, xmax, ymax]
 
 # get stats that correspond to shapely polygon coverage of a numpy array ie raster
-# noinspection PyBroadException,PyUnreachableCode
-def get_poly_stats(array, polys, bounds, stat='mean'):
+
+
+def getPolyStats(array, polys, bounds, stat='mean'):
+
     # get individual bounds variables
     xmin, ymin, xmax, ymax = bounds
 
     # get transform for raster stats
     nrows, ncols = np.shape(array)
-    xres = (xmax - xmin) / float(ncols)
-    yres = (ymax - ymin) / float(nrows)
+    xres = (xmax-xmin)/float(ncols)
+    yres = (ymax-ymin)/float(nrows)
     geotransform = (xmin, xres, 0, ymin, 0, yres)
 
     stats = []
@@ -764,7 +719,8 @@ def get_poly_stats(array, polys, bounds, stat='mean'):
         try:
             st = zonal_stats(poly, array, stats=stat, transform=geotransform)
             stats.append(st)
-        except Exception:
+        except Exception as e:
+            print(traceback.format_exc())
             continue
 
     stats = np.array([i.get('mean') for j in stats for i in j])
@@ -773,6 +729,10 @@ def get_poly_stats(array, polys, bounds, stat='mean'):
     polys = np.array(polys)[boolm]
     stats = stats[boolm]
     return stats, polys
+
+    '''
+    # calculate raster stats
+    stats = zonal_stats(polys, array.T, stats=stat, transform=geotransform)
 
 
 def classify(value, breaks):
@@ -786,301 +746,138 @@ def plot_multip(polys):
     plt.close('all')
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    try:
-        if len(polys) < 7:
-            colors = ['red', 'blue', 'green', 'orange', 'yellow', 'purple']
-            for i, x in enumerate(polys):
-                try:
-                    polyp = [PolygonPatch(p) for p in x]
-                    ax.add_collection(PatchCollection(polyp, facecolors=colors[i]))
-                except TypeError:
-                    polyp = PolygonPatch(x, fc=colors[i])
-                    ax.add_patch(polyp)
+    if len(polys) < 7:
+        colors = ['red', 'blue', 'green', 'orange', 'yellow', 'purple']
         for i, x in enumerate(polys):
             try:
                 polyp = [PolygonPatch(p) for p in x]
-                ax.add_collection(PatchCollection(polyp))
+                ax.add_collection(PatchCollection(polyp, facecolors=colors[i]))
             except TypeError:
-                polyp = PolygonPatch(x)
+                polyp = PolygonPatch(x, fc=colors[i])
                 ax.add_patch(polyp)
-    except TypeError:
-        ax.add_patch(PolygonPatch(polys))
-
+    for i, x in enumerate(polys):
+        try:
+            polyp = [PolygonPatch(p) for p in x]
+            ax.add_collection(PatchCollection(polyp))
+        except TypeError:
+            polyp = PolygonPatch(x)
+            ax.add_patch(polyp)
     ax.autoscale()
     plt.show()
 
 
-def small_polys(multip, area, multip2):
-    """
-    Helper function for simplify_polys
-    :param multip:
-    :param area:
-    :param multip2:
-    :return:
-    """
-    small_p = []
-    try:
-        for p in multip:
-            if p.area < area and p.intersects(multip2):
-                try:
-                    for p2 in multip2:
-                        if p2.area > area and p.intersects(p2):
-                            small_p.append(p)
-                except TypeError:
-                    if multip2.area > area:
-                        small_p.append(p)
-    except TypeError:
-        if multip.area < area and multip.intersects(multip2):
-            try:
-                for p2 in multip2:
-                    if p2.area > area and multip.intersects(p2):
-                        small_p.append(multip)
-            except TypeError:
-                if multip2.area > area:
-                    small_p.append(multip)
-    return MultiPolygon(small_p)
-
-
-def s_polys_up(polys, spacing):
+def simplifyPolys(polys, spacing):
     # input list of polygons/multipolygons and spacing attribute used to produce polygons
     # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
+    area = math.floor(spacing**2)
+    # list of indexes for input polygons
+    ilist = [i for i, x in enumerate(polys)]
+    # iterate through array of multipolygons
     for idx, multip in enumerate(polys):
-        # if idx <= med:
-        # identify polygons in j that are below the area threshold and intersect with the next multipolygon
+        # array for polygons to be removed from multip
+        badp = []
+        # list of indexes for input polygons - multip
+        iilist = [i for i in ilist if (ilist[i] != idx)]
+        # assume multip is a Multipolygon object
         try:
-            area_inters = small_polys(multip, area, polys[idx + 1])
-        except IndexError:
-            break
-        if area_inters.area > 0:
-            polys[idx] = polys[idx].difference(area_inters)
-            polys[idx + 1] = cascaded_union([polys[idx + 1], area_inters])
-            #else:
-            #    break
-    return polys
+            # iterate through multip
+            for ix, p in enumerate(multip):
+                # if area less than desired
+                if math.floor(p.area) <= area:
+                    # iterate through polys - multip
+                    for ixx, multip2 in enumerate([polys[i] for i in iilist]):
+                        # assume multip2 is multipolygon
+                        try:
+                            # for polygon in multip2
+                            for p2 in multip2:
+                                # if it intersects p, then append the index of p, reunion polygons and replace multip2 in polys
+                                if p.intersects(p2):
+                                    badp.append(ix)
+                                    multip2 = cascaded_union([multip2, p])
+                                    polys[iilist[ixx]] = multip2
+                                    break
+                            else:
+                                # executed if the loop ended normally (no break)
+                                continue
+                            # executed if 'continue' was skipped (break)
+                            break
+                        # else it is a polygon
+                        except TypeError:
+                            if p.intersects(multip2):
+                                badp.append(ix)
+                                multip2 = cascaded_union([multip2, p])
+                                polys[iilist[ixx]] = multip2
+                                break
+            # recreate list of polygons in multip, delete ones that were unioned with other multip's, and recreate multip
+            multip = [p for p in multip]
+            for index in sorted(badp, reverse=True):
+                del multip[index]
+            multip = cascaded_union(multip)
+            polys[idx] = multip
+        # except if multip is Polygon object
+        except TypeError:
+            p = multip
+            # if area less than desired
+            if math.floor(p.area) <= area:
+                # iterate through polys - multip
+                for ixx, multip2 in enumerate([polys[i] for i in iilist]):
+                    # assume multip2 is multipolygon
+                    try:
+                        # for polygon in multip2
+                        for p2 in multip2:
+                            # if it intersects p, then append the index of p, reunion polygons and replace multip2 in polys
+                            if p.intersects(p2):
+                                polys.remove(p)
+                                multip2 = cascaded_union([multip2, p])
+                                polys[iilist[ixx]] = multip2
+                                break
+                        else:
+                            # executed if the loop ended normally (no break)
+                            continue
+                        # executed if 'continue' was skipped (break)
+                        break
+                    # else it is a polygon
+                    except TypeError:
+                        if p.intersects(multip2):
+                            polys.remove(p)
+                            multip2 = cascaded_union([multip2, p])
+                            polys[iilist[ixx]] = multip2
+                            break
+    return [cascaded_union(p).simplify(.01) for p in polys if type(p) != GeometryCollection]
 
 
-def s_polys_up_med(polys, spacing):
-    # input list of polygons/multipolygons and spacing attribute used to produce polygons
-    # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
-    for idx, multip in enumerate(polys):
-        if idx <= med:
-            # identify polygons in j that are below the area threshold and intersect with the next multipolygon
-            try:
-                area_inters = small_polys(multip, area, polys[idx + 1])
-            except IndexError:
-                break
-            if area_inters.area > 0:
-                polys[idx] = polys[idx].difference(area_inters)
-                polys[idx + 1] = cascaded_union([polys[idx + 1], area_inters])
-        else:
-            break
-    return polys
-
-
-def s_polys_up_two(polys, spacing):
-    # input list of polygons/multipolygons and spacing attribute used to produce polygons
-    # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
-    for idx, multip in enumerate(polys):
-        # if idx <= med:
-        # identify polygons in j that are below the area threshold and intersect with the next multipolygon
-        try:
-            area_inters = small_polys(multip, area, polys[idx + 2])
-        except IndexError:
-            break
-        if area_inters.area > 0:
-            polys[idx] = polys[idx].difference(area_inters)
-            polys[idx + 2] = cascaded_union([polys[idx + 2], area_inters])
-            #else:
-            #    break
-    return polys
-
-
-def s_polys_down(polys, spacing):
-    # input list of polygons/multipolygons and spacing attribute used to produce polygons
-    # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
-    for idx, multip in reversed(list(enumerate(polys))):
-        # if idx >= med:
-        # identify polygons in j that are below the area threshold and intersect with the next multipolygon
-        try:
-            area_inters = small_polys(multip, area, polys[idx - 1])
-        except IndexError:
-            break
-        if area_inters.area > 0:
-            polys[idx] = polys[idx].difference(area_inters)
-            polys[idx - 1] = cascaded_union([polys[idx - 1], area_inters])
-            #else:
-            #    break
-    return polys
-
-
-def s_polys_down_two(polys, spacing):
-    # input list of polygons/multipolygons and spacing attribute used to produce polygons
-    # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
-    for idx, multip in reversed(list(enumerate(polys))):
-        # if idx >= med:
-        # identify polygons in j that are below the area threshold and intersect with the next multipolygon
-        try:
-            area_inters = small_polys(multip, area, polys[idx - 2])
-        except IndexError:
-            break
-        if area_inters.area > 0:
-            polys[idx] = polys[idx].difference(area_inters)
-            polys[idx - 2] = cascaded_union([polys[idx - 2], area_inters])
-            #else:
-            #    break
-    return polys
-
-
-def s_polys_down_med(polys, spacing):
-    # input list of polygons/multipolygons and spacing attribute used to produce polygons
-    # area
-    area = math.ceil(spacing ** 2)
-    med = np.median([i for i, p in enumerate(polys)])
-    for idx, multip in reversed(list(enumerate(polys))):
-        if idx >= med:
-            # identify polygons in j that are below the area threshold and intersect with the next multipolygon
-            try:
-                area_inters = small_polys(multip, area, polys[idx - 1])
-            except IndexError:
-                break
-            if area_inters.area > 0:
-                polys[idx] = polys[idx].difference(area_inters)
-                polys[idx - 1] = cascaded_union([polys[idx - 1], area_inters])
-        else:
-            break
-    return polys
-
-
-def remove_sliver(poly):
-    eps = .001
-    return poly.buffer(eps, 1, join_style=JOIN_STYLE.mitre).buffer(-eps, 1, join_style=JOIN_STYLE.mitre)
-
-
-def simplify_polys(polys, spacing, smooth):
-    new_polys = polys[:]
-    for sm in range(1, smooth + 1):
-        new_polys = s_polys_up_med(new_polys, (sm * spacing))
-        new_polys = s_polys_down_med(new_polys, (sm * spacing))
-    for sm in range(1, smooth + 1):
-        new_polys = s_polys_up(new_polys, (sm * spacing))
-        new_polys = s_polys_down(new_polys, (sm * spacing))
-    for sm in range(1, smooth + 1):
-        new_polys = s_polys_up_two(new_polys, (sm * spacing))
-        new_polys = s_polys_down_two(new_polys, (sm * spacing))
-    try:
-        new_polys = [remove_sliver(poly).simplify(.01) for poly in new_polys]
-    except ValueError:
-        pass
-    return new_polys
-
-
-def goodness_of_variance_fit(array, classes):
-    """
-    """
+def gjsonJenks(polyStats, polys, inP, classes, spacing=None):
     # get the break points
-    classes = jenks(array, classes)
+    classes = jenks(polyStats, classes)
 
     # do the actual classification
-    classified = np.array([classify(i, classes) for i in array])
+    classified = np.array([classify(i, classes) for i in polyStats])
 
     # max value of zones
     maxz = max(classified)
 
     # nested list of zone indices
-    zone_indices = [[idx for idx, val in enumerate(classified) if zone + 1 == val] for zone in range(maxz)]
-
-    # sum of squared deviations from array mean
-    sdam = np.sum((array - array.mean()) ** 2)
-
-    # sorted polygon stats
-    array_sort = [np.array([array[index] for index in zone]) for zone in zone_indices]
-
-    # sum of squared deviations of class means
-    sdcm = sum([np.sum((classified - classified.mean()) ** 2) for classified in array_sort])
-
-    # goodness of variance fit
-    gvf = (sdam - sdcm) / sdam
-
-    return gvf
-
-
-def gvf_array(stats, max_class):
-    gvf_arr = []
-    for i in range(2, max_class + 1):
-        gvf = goodness_of_variance_fit(stats, i)
-        # if gvf > 0:
-        gvf_arr.append(round(gvf, 2))
-        if gvf >= .9:
-            break
-    return gvf_arr
-
-
-def optimal_gfv(array_of_gvf_values):
-    for idx, val in enumerate(array_of_gvf_values):
-        if val > .8:
-            return val, idx + 2
-            # return array_of_gvf_values[-1], len(array_of_gvf_values) + 1
-
-
-def gvf_json(array_of_gvf_values):
-    return [[idx + 2, val] for idx, val in enumerate(array_of_gvf_values)]
-
-
-def get_poly_jenks(poly_stats, polys, classes):
-    """
-
-    """
-
-    # get the break points
-    classes = jenks(poly_stats, classes)
-
-    # do the actual classification
-    classified = np.array([classify(i, classes) for i in poly_stats])
-
-    # max value of zones
-    maxz = max(classified)
-
-    # nested list of zone indices
-    zone_indices = [[idx for idx, val in enumerate(classified) if zone + 1 == val] for zone in range(maxz)]
+    zoneIndices = [[idx for idx, val in enumerate(
+        classified) if zone + 1 == val] for zone in range(maxz)]
 
     # nested list of polygons corresponding to each zone number
-    poly_sort = [[polys[index] for index in zone] for zone in zone_indices]
+    polySort = [[polys[index] for index in zone] for zone in zoneIndices]
 
     # merge geometries, generate list of zones, create geojson feature collection from list
-    poly_comb = [cascaded_union(polyz) for polyz in poly_sort]
+    polyComb = [cascaded_union(polyz).simplify(.01) for polyz in polySort]
 
-    classes = [round(i,1) for i in classes]
-    class_breaks = []
-    for idx, val in enumerate(classes):
-        try:
-            class_breaks.append(str(val) + ' - ' + str(classes[idx + 1]))
-        except IndexError:
-            break
+    # if simplifying is needed
+    if spacing is not None:
+        # simplify polys
+        for i in range(2):
+            polyComb = simplifyPolys(polyComb, spacing)
 
-    return poly_comb, class_breaks
-
-
-def zones_to_geojson_fc(zones, class_breaks, inp=None, outp='epsg:4326'):
-    """
-
-    """
-    if inp:
-        # reproject multipolygons to epsg:4326
-        zones = reproject_multip(zones, in_projection=inp, out_projection=outp)
+    # reproject multipolygons to epsg:4326
+    polyComb = reprojectMultiP(polyComb, inProjection=inP)
 
     # create features and dump geojson
-    features = [geojson.Feature(geometry=mapping(zones[idx]), id=idx, properties={"zone": idx + 1, "values": val}) for
-                idx, val in enumerate(class_breaks)]
+    features = [geojson.Feature(geometry=mapping(polyComb[zone]), id=zone, properties={
+                                "zone": zone+1}) for zone in range(len(polyComb))]
 
     crs = {
         "type": "name",
@@ -1088,58 +885,41 @@ def zones_to_geojson_fc(zones, class_breaks, inp=None, outp='epsg:4326'):
             "name": "EPSG:4326"
         }}
 
-    feature_coll = geojson.FeatureCollection(features, crs=crs)
-    return geojson.loads(geojson.dumps(feature_coll))
-
-def json_legend(class_breaks):
-    num_classes = len(class_breaks)
-    if num_classes == 2:
-        cmap = ['#0000FF', '#FF0000']
-        #return {key + 1: {'fillColor': cmap[key], 'values': value} for (key, value) in enumerate(class_breaks)}
-        return [[cmap[i], class_breaks[i]] for i in range(num_classes)]
-    else:
-        # get color map of blues based on number of classes
-        cmap = brewer2mpl.get_map('RdBu', 'Diverging', num_classes, reverse=True)
-        return [[cmap.hex_colors[i], class_breaks[i]] for i in range(num_classes)]
-        #return {key + 1: {'fillColor': value, 'values': class_breaks[key]}
-        #        for (key, value) in enumerate(cmap.hex_colors)}
+    featureColl = geojson.FeatureCollection(features, crs=crs)
+    return geojson.loads(geojson.dumps(featureColl))
 
 
-def json_color_codes(num_classes):
-    '''
-
-    :param num_classes: number of classes to create a color map for
-    :return: two dictionaries, first dict is for default openlayers display, second for select openlayers display
-    '''
+def jsonColorCodes(numClasses):
     # special case for two zones
-    if num_classes == 2:
-        cmap = ['#0000FF', '#FF0000']
-        return {key + 1: {'fillColor': value} for (key, value) in enumerate(cmap)}, {
-            key + 1: {'fillColor': value, 'strokeColor': value} for (key, value) in enumerate(cmap)}
+    if numClasses == 2:
+        cmap = ['#FF0000', '#00FF00']
+        return {key + 1: {'fillColor': value} for (key, value) in enumerate(cmap)}
     else:
         # get color map of blues based on number of classes
-        cmap = brewer2mpl.get_map('RdBu', 'Diverging', num_classes, reverse=True)
-        return {key + 1: {'fillColor': value} for (key, value) in enumerate(cmap.hex_colors)}, {
-            key + 1: {'fillColor': value, 'strokeColor': value} for (key, value) in enumerate(cmap.hex_colors)}
+        cmap = brewer2mpl.get_map('Blues', 'Sequential', numClasses)
+        return {key + 1: {'fillColor': value} for (key, value) in enumerate(cmap.hex_colors)}
 
 
-# noinspection PyUnusedLocal
-def create_geotiff(filename, array, bounds, pyproj_object):
+def createGeotiff(filename, array, bounds, epsg):
     # found here: http://hydrogeotools.blogspot.com/2013/11/gridding-interpolate-xyz-data.html
-    nrows, ncols = array.shape
+    ncols, nrows = array.shape
     xmin, ymin, xmax, ymax = bounds
-    xres = (xmax - xmin) / float(ncols)
-    yres = (ymax - ymin) / float(nrows)
+    xres = (xmax-xmin)/float(ncols)
+    yres = (ymax-ymin)/float(nrows)
     geotransform = (xmin, xres, 0, ymin, 0, yres)
-    output_raster = gdal.GetDriverByName('GTiff').Create(filename, ncols, nrows, 1,
-                                                         gdal.GDT_Float32, ['TFW=YES', 'COMPRESS=PACKBITS'])
-    output_raster.SetGeoTransform(geotransform)  # Specify its coordinates
-    srs = osr.SpatialReference()  # Establish its coordinate encoding
-    srs.ImportFromProj4(pyproj_object.srs)  # import from pyproj object
-    output_raster.SetProjection(srs.ExportToWkt())  # Exports the coordinate system to the file
-    output_raster.GetRasterBand(1).WriteArray(array)  # Writes my array to the raster
-    output_raster = None
+    # Open the file, see here for information about compression: http://gis.stackexchange.com/questions/1104/should-gdal-be-set-to-produce-geotiff-files-with-compression-which-algorithm-sh
+    outputRaster = gdal.GetDriverByName('GTiff').Create(
+        filename, ncols, nrows, 1, gdal.GDT_Int16, ['TFW=YES', 'COMPRESS=PACKBITS'])
+    outputRaster.SetGeoTransform(geotransform)  # Specify its coordinates
+    srs = osr.SpatialReference()                 # Establish its coordinate encoding
+    # This one specifies SWEREF99 16 30
+    srs.ImportFromEPSG(epsg)
+    # Exports the coordinate system to the file
+    outputRaster.SetProjection(srs.ExportToWkt())
+    outputRaster.GetRasterBand(1).WriteArray(
+        array.T)   # Writes my array to the raster
+    outputRaster = None
 
 
-def asshape(geoj):
-    return asShape(geoj)
+def asshape(geojson):
+    return asShape(geojson)
