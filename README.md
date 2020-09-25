@@ -1,4 +1,4 @@
 # EZZone
 Agricultural Management Zone creator
 
-[Website](Ezzone.pythonanywhere.com)
+[Website](www.Ezzone.pythonanywhere.com)
