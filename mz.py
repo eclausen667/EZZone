@@ -1,9 +1,9 @@
-import math
 import numpy as np
 from scipy.interpolate import griddata
+import math
 import pyproj
-from shapely.geometry import MultiPolygon, Polygon, asShape, LineString, mapping, MultiPoint, Point, JOIN_STYLE
-from shapely.ops import cascaded_union
+from shapely.geometry import MultiPolygon, Polygon, asShape, LineString, mapping, MultiPoint, Point, MultiLineString, GeometryCollection
+from shapely.ops import cascaded_union, polygonize
 from shapely.affinity import rotate
 from rasterstats import zonal_stats
 import geojson
@@ -14,6 +14,7 @@ from descartes import PolygonPatch
 from matplotlib.collections import PatchCollection
 from osgeo import gdal
 from osgeo import osr
+import traceback
 
 
 def extrapolate_nans(x, y, v):
@@ -22,25 +23,20 @@ def extrapolate_nans(x, y, v):
     Extrapolate the NaNs or masked values in a grid INPLACE using nearest
     value.
 
-
-# noinspection PyUnresolvedReferences
-def extrapolate_nans(x, y, v):
-    """
-    ###FROM fatiando PROJECT ON GITHUB###
-
-    Extrapolate the NaNs or masked values in a grid INPLACE using nearest neighbor interpolant
-
     .. warning:: Replaces the NaN or masked values of the original array!
 
-    :param x: Array with the x coordinates of the data points.
-    :type x: np.array
-    :param y: Array with the y coordinates of the data points.
-    :type y: np.array
-    :param v: Array with the scalar value assigned to the data points.
-    :type v: np.array
-    :returns: Array with NaN's replaced by nearest neighbor function
-    :rtype : np.array
-    """
+    Parameters:
+
+    * x, y : 2D arrays
+        Arrays with the x and y coordinates of the data points.
+    * v : 2D array
+        Array with the scalar value assigned to the data points.
+
+    Returns:
+
+    * v : 2D array
+        The array with NaNs or masked values extrapolated.
+    '''
 
     if np.ma.is_masked(v):
         nans = v.mask
@@ -78,7 +74,6 @@ def geojFCparser(obj, geomtype):
     # if our object is a raw string
     if type(obj) == str:
         obj = geojson.loads(obj)
-    # noinspection PyTypeChecker
     for i in obj['features']:
         for v in i.iteritems():
             for x in v:
@@ -89,38 +84,28 @@ def geojFCparser(obj, geomtype):
 
 def boundJson(x, y, geometryType=1, inProjection='epsg:4326', outProjection='epsg:3857'):
     """
-    Create a polygon GeoJSON boundary from x and y coordinate arrays
+    Create a GeoJSON boundary from csv input
+    Args:
+        filename(file): the filename to perform the operation on
+        geometryType(int): type of geometric shape, 1 = rectangular, 2 = circular, 3 = irregular
+        inProjection(int): EPSG projection number for csv data
+        outProjection(int): EPSG projection number for output GeoJSON string (default 3857 for google maps)
 
-    :param x: x coordinate array
-    :type  x: numpy array
-
-    :param y: y coordinate array
-    :type  y: numpy array
-
-    :param geometry_type: type of field geometry, 1 for rectangular, 2 for VRI, and 3 for all others
-    :type  geometry_type: int
-
-    :param in_projection: the epsg value for the input x, y points
-    :type  in_projection: string in the form of 'epsg:XXXX'
-
-    :param out_projection: the epsg value for the desired created boundary
-    :type  out_projection: string in the form of 'epsg:XXXX'
-
-    :returns: GeoJSON boundary polygon as a dict
-    :rtype: dict
+    Returns:
+        GeoJSON string of polygon boundary 
     """
-    g = geometry_type
-    inp = in_projection
-    outp = out_projection
-    jfeat = []
+    g = geometryType
+    inP = inProjection
+    outP = outProjection
+    jFeat = []
     crs = {
         "type": "name",
         "properties": {
             "name": outP
         }}
 
-    inp = pyproj.Proj(init=inp)
-    outp = pyproj.Proj(init=outp)
+    inP = pyproj.Proj(init=inP)
+    outP = pyproj.Proj(init=outP)
 
     # get the point coordinates
     points = np.column_stack([x, y])
@@ -140,7 +125,7 @@ def boundJson(x, y, geometryType=1, inProjection='epsg:4326', outProjection='eps
 
         geoJson = geojson.Polygon([[xMax, yMax, xMin, yMin, xMax]], crs=crs)
 
-    elif g == 2 or g == 3:
+    if g == 2 or g == 3:
         points = MultiPoint(points)
         m = mapping(points.convex_hull)
         for i in m['coordinates']:
@@ -163,11 +148,6 @@ def getSpacing(boundary, rowSpacing):
 # orders y elements least to greatest of a 2d numpy array and eliminates duplicate values,
 # returning the new array
 def unique(a):
-    """
-
-    :param a:
-    :return:
-    """
     order = np.lexsort(a.T)
     a = a[order]
     diff = np.diff(a, axis=0)
@@ -179,25 +159,14 @@ def unique(a):
 
 
 def deltax(xy1, xy2):
-    """
-
-    :param xy1:
-    :param xy2:
-    :return:
-    """
-    return xy2[0] - xy1[0]
-
-
-# returns integer of epsg coordinates:
-def epsg_int(string_epsg):
-    """
+    return (xy2[0] - xy1[0])
 
 # returns integer of epsg coordinates:
 
 
 def epsgInt(stringEpsg):
     li = []
-    for l in string_epsg:
+    for l in stringEpsg:
         if l.isdigit():
             li.append(l)
     return int(''.join(li))
@@ -219,7 +188,6 @@ def reprojectPoly(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
         # or a regular geometry?
         except KeyError:
             poly = asShape(obj)
-
     else:
         poly = obj
 
@@ -227,9 +195,9 @@ def reprojectPoly(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
     if type(inProjection) != str:
         inP = inProjection
     else:
-        inp = pyproj.Proj(init=in_projection)
-    if type(out_projection) != str:
-        outp = out_projection
+        inP = pyproj.Proj(init=inProjection)
+    if type(outProjection) != str:
+        outP = outProjection
     else:
         outP = pyproj.Proj(init=outProjection)
 
@@ -243,7 +211,7 @@ def reprojectPoly(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
             i.coords)] for i in poly.interiors if (math.floor(Polygon(i).area) > 0)]
         poly = Polygon(extCoords, intCoords)
     except AttributeError:
-        poly = Polygon(ext_coords)
+        poly = Polygon(extCoords)
     return poly
 
 
@@ -288,9 +256,9 @@ def reprojectPoint(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
     if type(inProjection) != str:
         inP = inProjection
     else:
-        inp = pyproj.Proj(init=in_projection)
-    if type(out_projection) != str:
-        outp = out_projection
+        inP = pyproj.Proj(init=inProjection)
+    if type(outProjection) != str:
+        outP = outProjection
     else:
         outP = pyproj.Proj(init=outProjection)
 
@@ -321,9 +289,9 @@ def reprojectLine(obj, inProjection='epsg:3857', outProjection='epsg:4326'):
     if type(inProjection) != str:
         inP = inProjection
     else:
-        inp = pyproj.Proj(init=in_projection)
-    if type(out_projection) != str:
-        outp = out_projection
+        inP = pyproj.Proj(init=inProjection)
+    if type(outProjection) != str:
+        outP = outProjection
     else:
         outP = pyproj.Proj(init=outProjection)
 
@@ -416,11 +384,11 @@ def rectGrid(polygon, rowSpace=2):
     dyS = lastPtSide[1] - firstPtTop[1]
     sideLineAngle = math.atan2(dyS, dxS)
 
-    angle1 = side_line_angle
-    angle2 = top_line_angle
+    angle1 = sideLineAngle
+    angle2 = topLineAngle
     angle3 = math.pi + angle1
 
-    first_poly_pt = first_pt_top
+    firstPolyPt = firstPtTop
     polys = []
 
     # iterate through rows and columns and create polygons, column by column
@@ -532,8 +500,8 @@ def irregGrid(boundary, rowLine, rowSpace=2):
     dyS = lastPtSide[1] - firstPtTop[1]
     sideLineAngle = math.atan2(dyS, dxS)
 
-    angle1 = side_line_angle
-    angle2 = top_line_angle
+    angle1 = sideLineAngle
+    angle2 = topLineAngle
     angle3 = math.pi + angle1
 
     firstPolyPt = firstPtTop
@@ -722,7 +690,11 @@ def getPolyStats(array, polys, bounds, stat='mean'):
         except Exception as e:
             print(traceback.format_exc())
             continue
-
+    '''
+    for poly in polys:
+        st = zonal_stats(poly, array.T, stats = stat, transform = geotransform)
+        stats.append(st)
+    '''
     stats = np.array([i.get('mean') for j in stats for i in j])
     stats = stats.astype('float')
     boolm = np.isfinite(stats)
@@ -731,8 +703,12 @@ def getPolyStats(array, polys, bounds, stat='mean'):
     return stats, polys
 
     '''
-    # calculate raster stats
-    stats = zonal_stats(polys, array.T, stats=stat, transform=geotransform)
+    #calculate raster stats
+    stats = zonal_stats(polys,array.T, stats=stat,transform = geotransform )
+
+    #take list of dicts from stats and convert to numpy array of stat variable
+    return np.array([0 if str(i.get('mean')) == 'nan' else i.get('mean') for i in stats])
+    '''
 
 
 def classify(value, breaks):
@@ -742,7 +718,7 @@ def classify(value, breaks):
     return len(breaks) - 1
 
 
-def plot_multip(polys):
+def plotMultip(polys):
     plt.close('all')
     fig = plt.figure()
     ax = fig.add_subplot(111)
