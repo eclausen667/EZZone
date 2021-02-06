@@ -7,7 +7,8 @@ from shapely.ops import cascaded_union, polygonize
 from shapely.affinity import rotate
 from rasterstats import zonal_stats
 import geojson
-from jenks import jenks
+from jenkspy import jenks
+# from jenks import jenks
 import brewer2mpl
 import matplotlib.pyplot as plt
 from descartes import PolygonPatch

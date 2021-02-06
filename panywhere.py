@@ -1,15 +1,16 @@
 '''
 local app was changed to include a run.py and __init__.py file.
 '''
-
-
-from app import app  # added this for local app
+from flask import Flask
+# from app import app # added this for local app
 from flask import render_template, request, send_file, Response
-from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
 import mz
 import numpy as np
 import os
 import tempfile
+
+app = Flask(__name__)
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(APP_ROOT, 'static/uploads')
@@ -193,3 +194,7 @@ def sendFile():
 
 
 app.secret_key = '12ad432gfd'
+if __name__ == '__main__':
+    # main()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='127.0.0.1', port=port)
